@@ -1,0 +1,154 @@
+[
+  {
+    "name": "empty object",
+    "input": {},
+    "canonical": "{}"
+  },
+  {
+    "name": "empty array",
+    "input": [],
+    "canonical": "[]"
+  },
+  {
+    "name": "literals",
+    "input": {
+      "t": true,
+      "f": false,
+      "n": null
+    },
+    "canonical": "{\"f\":false,\"n\":null,\"t\":true}"
+  },
+  {
+    "name": "keys sort by code unit, ascii",
+    "input": {
+      "b": 1,
+      "a": 2,
+      "C": 3,
+      "_": 4
+    },
+    "canonical": "{\"C\":3,\"_\":4,\"a\":2,\"b\":1}"
+  },
+  {
+    "name": "keys sort by code unit, prefixes first",
+    "input": {
+      "ab": 1,
+      "a": 2,
+      "aa": 3,
+      "": 4
+    },
+    "canonical": "{\"\":4,\"a\":2,\"aa\":3,\"ab\":1}"
+  },
+  {
+    "name": "keys sort by code unit, non-ascii",
+    "input": {
+      "é": 1,
+      "z": 2,
+      "A": 3,
+      "É": 4
+    },
+    "canonical": "{\"A\":3,\"z\":2,\"É\":4,\"é\":1}"
+  },
+  {
+    "name": "keys sort by code unit: U+D7FF, then a surrogate pair, then U+E000, then U+FFFF",
+    "input": {
+      "￿": 1,
+      "😀": 2,
+      "": 3,
+      "퟿": 4
+    },
+    "canonical": "{\"퟿\":4,\"😀\":2,\"\":3,\"￿\":1}"
+  },
+  {
+    "name": "string escapes",
+    "input": {
+      "s": "quote \" backslash \\ newline \n tab \t return \r backspace \b formfeed \f"
+    },
+    "canonical": "{\"s\":\"quote \\\" backslash \\\\ newline \\n tab \\t return \\r backspace \\b formfeed \\f\"}"
+  },
+  {
+    "name": "control characters below 0x20 escape as backslash-u00xx",
+    "input": {
+      "c": "\u0000\u0001\u001f"
+    },
+    "canonical": "{\"c\":\"\\u0000\\u0001\\u001f\"}"
+  },
+  {
+    "name": "0x7f and 0x80 are literal, not escaped",
+    "input": {
+      "s": ""
+    },
+    "canonical": "{\"s\":\"\"}"
+  },
+  {
+    "name": "unicode passes through as utf-8",
+    "input": {
+      "s": "héllo — 日本語 😀"
+    },
+    "canonical": "{\"s\":\"héllo — 日本語 😀\"}"
+  },
+  {
+    "name": "integers",
+    "input": {
+      "zero": 0,
+      "one": 1,
+      "neg": -1,
+      "max_safe": 9007199254740991,
+      "min_safe": -9007199254740991
+    },
+    "canonical": "{\"max_safe\":9007199254740991,\"min_safe\":-9007199254740991,\"neg\":-1,\"one\":1,\"zero\":0}"
+  },
+  {
+    "name": "arrays keep their order",
+    "input": {
+      "a": [
+        3,
+        1,
+        2,
+        {
+          "b": 1,
+          "a": 2
+        }
+      ]
+    },
+    "canonical": "{\"a\":[3,1,2,{\"a\":2,\"b\":1}]}"
+  },
+  {
+    "name": "nested objects sort at every level",
+    "input": {
+      "z": {
+        "y": {
+          "x": 1,
+          "a": 2
+        },
+        "a": [
+          {
+            "b": 1,
+            "a": 2
+          }
+        ]
+      },
+      "a": 1
+    },
+    "canonical": "{\"a\":1,\"z\":{\"a\":[{\"a\":2,\"b\":1}],\"y\":{\"a\":2,\"x\":1}}}"
+  },
+  {
+    "name": "receipt-shaped fragment",
+    "input": {
+      "v": 1,
+      "kind": "exhibitb.receipt",
+      "seq": 1,
+      "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+      "claims": [
+        {
+          "n": 1,
+          "dissent": null,
+          "doc_span": [
+            0,
+            12
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"claims\":[{\"dissent\":null,\"doc_span\":[0,12],\"n\":1}],\"kind\":\"exhibitb.receipt\",\"prev_hash\":\"3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f\",\"seq\":1,\"v\":1}"
+  }
+]

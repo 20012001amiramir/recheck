@@ -1,0 +1,88 @@
+{
+  "note": "Three sealed receipts of one UTC day, the signed root file over them, and an inclusion proof for each.",
+  "key": {
+    "key_id": "eb-root-test",
+    "public_key": "+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ="
+  },
+  "receipts": [
+    {
+      "id": "eb_2m4Kq8Xr7vTb3nHd",
+      "seq": 1,
+      "issued_at": "2026-09-03T10:00:00Z",
+      "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+      "self_hash": "9fc2eddcc491332c85770d0cfc5f816ff9e48fcbcee45baf898c544051ce69d3"
+    },
+    {
+      "id": "eb_7pQw9sZk2LxN4tBc",
+      "seq": 2,
+      "issued_at": "2026-09-03T11:00:00Z",
+      "prev_hash": "9fc2eddcc491332c85770d0cfc5f816ff9e48fcbcee45baf898c544051ce69d3",
+      "self_hash": "232745f28e98ca5956a58f21ce7ccb753e935aace35afd368a88393bf287d569"
+    },
+    {
+      "id": "eb_4hRy6uJm8VdA3kFe",
+      "seq": 3,
+      "issued_at": "2026-09-03T12:00:00Z",
+      "prev_hash": "232745f28e98ca5956a58f21ce7ccb753e935aace35afd368a88393bf287d569",
+      "self_hash": "54f25f9aac5cacf076a72ccf42a0d81672c338cadc0397ff091326c619a93bf6"
+    }
+  ],
+  "root_file": {
+    "v": 1,
+    "kind": "exhibitb.root",
+    "date": "2026-09-03",
+    "first_seq": 1,
+    "last_seq": 3,
+    "count": 3,
+    "root": "738cd1fea57ceff0535739f56ed3d879bd352bd78ce027165164813474cbf2ee",
+    "prev_root": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+    "head_hash": "54f25f9aac5cacf076a72ccf42a0d81672c338cadc0397ff091326c619a93bf6",
+    "key_id": "eb-root-test",
+    "self_hash": "8a45d351ed3c006ec3dbcf01766b235385c8acec918e5756e369e8afbdaa1225",
+    "signatures": [
+      {
+        "key_id": "eb-root-test",
+        "alg": "ed25519",
+        "sig": "+mnPRTx1MwMdzTdh/oAJFzW8VeLiCthHsULHuBwM3/TmvesBtmUucLr6uMmQg32jGvO2FzYE82Kmj69oxC3lDg=="
+      }
+    ]
+  },
+  "root_file_canonical": "{\"count\":3,\"date\":\"2026-09-03\",\"first_seq\":1,\"head_hash\":\"54f25f9aac5cacf076a72ccf42a0d81672c338cadc0397ff091326c619a93bf6\",\"key_id\":\"eb-root-test\",\"kind\":\"exhibitb.root\",\"last_seq\":3,\"prev_root\":\"3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f\",\"root\":\"738cd1fea57ceff0535739f56ed3d879bd352bd78ce027165164813474cbf2ee\",\"self_hash\":\"8a45d351ed3c006ec3dbcf01766b235385c8acec918e5756e369e8afbdaa1225\",\"signatures\":[{\"alg\":\"ed25519\",\"key_id\":\"eb-root-test\",\"sig\":\"+mnPRTx1MwMdzTdh/oAJFzW8VeLiCthHsULHuBwM3/TmvesBtmUucLr6uMmQg32jGvO2FzYE82Kmj69oxC3lDg==\"}],\"v\":1}",
+  "proofs": [
+    {
+      "receipt_id": "eb_2m4Kq8Xr7vTb3nHd",
+      "self_hash": "9fc2eddcc491332c85770d0cfc5f816ff9e48fcbcee45baf898c544051ce69d3",
+      "leaf_index": 0,
+      "tree_size": 3,
+      "audit_path": [
+        "7e02f9e5b1a47288a64f4979f3d83d80f0fed4948f6f4e6853102f024a0b28ae",
+        "8b643ac3c3128122d2333b42f595a41c0c1abf2293ab159c736aa5af245fdff4"
+      ],
+      "root": "738cd1fea57ceff0535739f56ed3d879bd352bd78ce027165164813474cbf2ee",
+      "root_file": "roots/2026-09-03.json"
+    },
+    {
+      "receipt_id": "eb_7pQw9sZk2LxN4tBc",
+      "self_hash": "232745f28e98ca5956a58f21ce7ccb753e935aace35afd368a88393bf287d569",
+      "leaf_index": 1,
+      "tree_size": 3,
+      "audit_path": [
+        "75a7d6f0dd59245bdeb66f7b88216c0370e8d2a549b4ef889edc356881c0be3b",
+        "8b643ac3c3128122d2333b42f595a41c0c1abf2293ab159c736aa5af245fdff4"
+      ],
+      "root": "738cd1fea57ceff0535739f56ed3d879bd352bd78ce027165164813474cbf2ee",
+      "root_file": "roots/2026-09-03.json"
+    },
+    {
+      "receipt_id": "eb_4hRy6uJm8VdA3kFe",
+      "self_hash": "54f25f9aac5cacf076a72ccf42a0d81672c338cadc0397ff091326c619a93bf6",
+      "leaf_index": 2,
+      "tree_size": 3,
+      "audit_path": [
+        "1793243994a25f83c64af610b2823d37530d15872c320a9f4d4ce5a697e590dc"
+      ],
+      "root": "738cd1fea57ceff0535739f56ed3d879bd352bd78ce027165164813474cbf2ee",
+      "root_file": "roots/2026-09-03.json"
+    }
+  ]
+}

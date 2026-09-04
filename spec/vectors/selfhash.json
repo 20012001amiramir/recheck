@@ -1,0 +1,56 @@
+[
+  {
+    "name": "minimal object",
+    "input": {
+      "a": 1
+    },
+    "self_hash": "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
+  },
+  {
+    "name": "empty object",
+    "input": {},
+    "self_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "name": "receipt body",
+    "input": {
+      "v": 1,
+      "kind": "exhibitb.receipt",
+      "id": "eb_2m4Kq8Xr7vTb3nHd",
+      "seq": 1,
+      "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f"
+    },
+    "self_hash": "1853eeb56409cc86792733be237e0ed7055a2167cea82b1419702e353ff13b13"
+  },
+  {
+    "name": "same body with self_hash and signatures present — both are excluded",
+    "input": {
+      "v": 1,
+      "kind": "exhibitb.receipt",
+      "id": "eb_2m4Kq8Xr7vTb3nHd",
+      "seq": 1,
+      "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+      "self_hash": "ee0874170b7f6f32b8c2ac9573c428d35b575270a66b757c2c0185d2bd09718d",
+      "signatures": [
+        {
+          "key_id": "eb-receipt-test",
+          "alg": "ed25519",
+          "sig": "x"
+        }
+      ]
+    },
+    "self_hash": "1853eeb56409cc86792733be237e0ed7055a2167cea82b1419702e353ff13b13"
+  },
+  {
+    "name": "unicode and integers",
+    "input": {
+      "😀": [
+        0,
+        -1,
+        9007199254740991
+      ],
+      "s": "héllo"
+    },
+    "self_hash": "3b117c949e0fe3342aa4f2f08e705a89593834b0afce11c74ed8c1a8d0c87d5f"
+  }
+]
