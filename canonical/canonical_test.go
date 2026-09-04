@@ -82,15 +82,15 @@ func canon(t *testing.T, src string) (string, error) {
 
 func TestNumbersByValue(t *testing.T) {
 	ok := map[string]string{
-		`{"a":812004.0}`:            `{"a":812004}`,
-		`{"a":8.12004e5}`:           `{"a":812004}`,
-		`{"a":-0}`:                  `{"a":0}`,
-		`{"a":-0.0}`:                `{"a":0}`,
-		`{"a":0}`:                   `{"a":0}`,
-		`{"a":1E2}`:                 `{"a":100}`,
-		`{"a":9007199254740991}`:    `{"a":9007199254740991}`,
-		`{"a":-9007199254740991}`:   `{"a":-9007199254740991}`,
-		`{"a":9007199254740991.0}`:  `{"a":9007199254740991}`,
+		`{"a":812004.0}`:             `{"a":812004}`,
+		`{"a":8.12004e5}`:            `{"a":812004}`,
+		`{"a":-0}`:                   `{"a":0}`,
+		`{"a":-0.0}`:                 `{"a":0}`,
+		`{"a":0}`:                    `{"a":0}`,
+		`{"a":1E2}`:                  `{"a":100}`,
+		`{"a":9007199254740991}`:     `{"a":9007199254740991}`,
+		`{"a":-9007199254740991}`:    `{"a":-9007199254740991}`,
+		`{"a":9007199254740991.0}`:   `{"a":9007199254740991}`,
 		`{"a":90071992547409910e-1}`: `{"a":9007199254740991}`,
 	}
 	for src, want := range ok {
@@ -124,33 +124,33 @@ func TestNumbersByValue(t *testing.T) {
 
 func TestStrictParsing(t *testing.T) {
 	refuse := map[string]string{
-		`{"a":1,"a":2}`:                 `duplicate key "a" at $`,
-		`{"o":{"x":1,"x":1}}`:           `duplicate key "x" at $.o`,
-		`{"a":"\ud800"}`:                "unpaired surrogate at $.a",
-		`{"a":"\udc00"}`:                "unpaired surrogate at $.a",
-		`{"a":"\ud83dx"}`:               "unpaired surrogate at $.a",
-		`{"a":"\ud83d\u0041"}`:          "unpaired surrogate at $.a",
-		`["\udfff"]`:                    "unpaired surrogate at $[0]",
-		`{"\ud800":1}`:                  "unpaired surrogate at $",
-		"{\"a\":\"\xed\xa0\x80\"}":      "unpaired surrogate at $.a",
-		"{\"a\":\"\xff\"}":              "invalid UTF-8 at $.a",
-		"{\"a\":\"\xc0\xaf\"}":          "invalid UTF-8 at $.a",
-		"\xef\xbb\xbf{}":                "byte-order mark is not JSON at $",
-		"{\"a\":\"x\ty\"}":              "control character in string at $.a",
-		`{"a":1,}`:                      "expected a string key at $",
-		`[1,]`:                          "unexpected character ']' at $[1]",
-		`{} x`:                          "unexpected content after the value at $",
-		`{}{}`:                          "unexpected content after the value at $",
-		``:                              "empty input at $",
-		`   `:                           "empty input at $",
-		`{"a":"\x"}`:                    `invalid escape \x at $.a`,
-		`{"a":"\u12"}`:                  `invalid \u escape at $.a`,
-		`{"a":tru}`:                     "invalid literal at $.a",
-		`{"a"`:                          "expected ':' after a key at $",
-		`{"a":1`:                        "expected ',' or '}' at $",
-		`[1 2]`:                         "expected ',' or ']' at $",
-		`"unterminated`:                 "unterminated string at $",
-		"{\"a\":1}\n\u00a0":             "unexpected content after the value at $",
+		`{"a":1,"a":2}`:            `duplicate key "a" at $`,
+		`{"o":{"x":1,"x":1}}`:      `duplicate key "x" at $.o`,
+		`{"a":"\ud800"}`:           "unpaired surrogate at $.a",
+		`{"a":"\udc00"}`:           "unpaired surrogate at $.a",
+		`{"a":"\ud83dx"}`:          "unpaired surrogate at $.a",
+		`{"a":"\ud83d\u0041"}`:     "unpaired surrogate at $.a",
+		`["\udfff"]`:               "unpaired surrogate at $[0]",
+		`{"\ud800":1}`:             "unpaired surrogate at $",
+		"{\"a\":\"\xed\xa0\x80\"}": "unpaired surrogate at $.a",
+		"{\"a\":\"\xff\"}":         "invalid UTF-8 at $.a",
+		"{\"a\":\"\xc0\xaf\"}":     "invalid UTF-8 at $.a",
+		"\xef\xbb\xbf{}":           "byte-order mark is not JSON at $",
+		"{\"a\":\"x\ty\"}":         "control character in string at $.a",
+		`{"a":1,}`:                 "expected a string key at $",
+		`[1,]`:                     "unexpected character ']' at $[1]",
+		`{} x`:                     "unexpected content after the value at $",
+		`{}{}`:                     "unexpected content after the value at $",
+		``:                         "empty input at $",
+		`   `:                      "empty input at $",
+		`{"a":"\x"}`:               `invalid escape \x at $.a`,
+		`{"a":"\u12"}`:             `invalid \u escape at $.a`,
+		`{"a":tru}`:                "invalid literal at $.a",
+		`{"a"`:                     "expected ':' after a key at $",
+		`{"a":1`:                   "expected ',' or '}' at $",
+		`[1 2]`:                    "expected ',' or ']' at $",
+		`"unterminated`:            "unterminated string at $",
+		"{\"a\":1}\n\u00a0":        "unexpected content after the value at $",
 	}
 	for src, want := range refuse {
 		_, err := canonical.Parse([]byte(src))
@@ -165,18 +165,47 @@ func TestStrictParsing(t *testing.T) {
 	}
 }
 
+func TestLenientFixtures(t *testing.T) {
+	for _, src := range []string{`{"a":"x\ud800y","b":["\udfff"],"c":"\ud83d\u0041"}`, "{\"a\":\"x\xed\xa0\x80y\",\"b\":[\"\xed\xbf\xbf\"],\"c\":\"\xed\xa0\xbdA\"}"} {
+		if _, err := canonical.Parse([]byte(src)); err == nil {
+			t.Errorf("%q: strict parse must refuse a lone surrogate", src)
+		}
+		v, err := canonical.ParseLenient([]byte(src))
+		if err != nil {
+			t.Fatalf("%q: lenient parse: %v", src, err)
+		}
+		if _, err := canonical.Canonicalize(v); err == nil || err.Error() != "unpaired surrogate at $.a" {
+			t.Errorf("%q: canonicalize gave %v", src, err)
+		}
+		out, err := canonical.Pretty(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "{\n  \"a\": \"x\\ud800y\",\n  \"b\": [\n    \"\\udfff\"\n  ],\n  \"c\": \"\\ud83dA\"\n}\n"
+		if string(out) != want {
+			t.Errorf("%q: pretty gave %s", src, out)
+		}
+		if _, err := canonical.Parse(out); err == nil {
+			t.Errorf("%q: the pretty form must still be refused by the strict parser", src)
+		}
+	}
+	if _, err := canonical.ParseLenient([]byte("{\"a\":\"\xff\"}")); err == nil {
+		t.Error("lenient parsing still refuses invalid UTF-8")
+	}
+}
+
 func TestAcceptsWhatJSONAllows(t *testing.T) {
 	cases := map[string]string{
 		"  {\r\n\t\"b\" : [ 1 , true , null , \"x\" ] , \"a\" : {} }  ": `{"a":{},"b":[1,true,null,"x"]}`,
-		`{"a":"\/\u0041\u00e9\ud83d\ude00"}`:                             `{"a":"/Aé😀"}`,
-		"{\"a\":\"\u007f\u0080\u2028\u2029\"}":                             "{\"a\":\"\u007f\u0080\u2028\u2029\"}",
-		`{"a":"\u001b\u0000\u001F"}`:                                      `{"a":"\u001b\u0000\u001f"}`,
-		`{"10":1,"9":2,"1":3}`:                                            `{"1":3,"10":1,"9":2}`,
-		`{"b":{"z":1,"a":2},"a":[{"y":1,"x":2}]}`:                         `{"a":[{"x":2,"y":1}],"b":{"a":2,"z":1}}`,
-		`[]`:                                                              `[]`,
-		`"top-level string"`:                                              `"top-level string"`,
-		`12`:                                                              `12`,
-		`null`:                                                            `null`,
+		`{"a":"\/\u0041\u00e9\ud83d\ude00"}`:                            `{"a":"/Aé😀"}`,
+		"{\"a\":\"\u007f\u0080\u2028\u2029\"}":                          "{\"a\":\"\u007f\u0080\u2028\u2029\"}",
+		`{"a":"\u001b\u0000\u001F"}`:                                    `{"a":"\u001b\u0000\u001f"}`,
+		`{"10":1,"9":2,"1":3}`:                                          `{"1":3,"10":1,"9":2}`,
+		`{"b":{"z":1,"a":2},"a":[{"y":1,"x":2}]}`:                       `{"a":[{"x":2,"y":1}],"b":{"a":2,"z":1}}`,
+		`[]`:                 `[]`,
+		`"top-level string"`: `"top-level string"`,
+		`12`:                 `12`,
+		`null`:               `null`,
 	}
 	for src, want := range cases {
 		got, err := canon(t, src)

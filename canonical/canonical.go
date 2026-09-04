@@ -108,11 +108,18 @@ func (e *Error) Error() string { return e.Msg + " at " + e.Path }
 // of any JSON shape are read; whether their value is a safe integer is recorded in IsInt and
 // enforced by Canonicalize, so a document with a fraction in it still parses and can be reported
 // on by path.
-func Parse(data []byte) (*Value, error) {
+func Parse(data []byte) (*Value, error) { return parse(data, false) }
+
+// ParseLenient is Parse for fixtures: a lone surrogate, escaped or raw, is kept — stored as the
+// three bytes UTF-8 would use for it — instead of refused. Canonicalize still refuses such a
+// value; Pretty writes it back as a \u escape, so a fixture that carries one round-trips.
+func ParseLenient(data []byte) (*Value, error) { return parse(data, true) }
+
+func parse(data []byte, lenient bool) (*Value, error) {
 	if bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
 		return nil, &Error{Msg: "byte-order mark is not JSON", Path: "$", Offset: 0}
 	}
-	p := &parser{data: data}
+	p := &parser{data: data, lenient: lenient}
 	p.skipWS()
 	if p.pos >= len(data) {
 		return nil, &Error{Msg: "empty input", Path: "$", Offset: p.pos}
@@ -129,9 +136,20 @@ func Parse(data []byte) (*Value, error) {
 }
 
 type parser struct {
-	data  []byte
-	pos   int
-	depth int
+	data    []byte
+	pos     int
+	depth   int
+	lenient bool
+}
+
+// isSurrogateBytes reports whether d starts with a surrogate code unit written as three bytes
+// (ED A0..BF 80..BF), which is not UTF-8.
+func isSurrogateBytes(d []byte) bool {
+	return len(d) >= 3 && d[0] == 0xED && d[1] >= 0xA0 && d[1] <= 0xBF && d[2] >= 0x80 && d[2] <= 0xBF
+}
+
+func appendSurrogate(b []byte, u uint16) []byte {
+	return append(b, 0xED, byte(0x80|((u>>6)&0x3F)), byte(0x80|(u&0x3F)))
 }
 
 func (p *parser) fail(path, msg string) *Error {
@@ -310,21 +328,30 @@ func (p *parser) str(path string) (string, error) {
 					return "", p.fail(path, "invalid \\u escape")
 				}
 				switch {
-				case u >= 0xDC00 && u <= 0xDFFF:
-					return "", p.fail(path, "unpaired surrogate")
 				case u >= 0xD800 && u <= 0xDBFF:
-					if p.pos+1 >= len(p.data) || p.data[p.pos] != '\\' || p.data[p.pos+1] != 'u' {
+					// A high surrogate needs a low one right behind it.
+					if p.pos+1 < len(p.data) && p.data[p.pos] == '\\' && p.data[p.pos+1] == 'u' {
+						save := p.pos
+						p.pos += 2
+						lo, ok := p.hex4()
+						if !ok {
+							return "", p.fail(path, "invalid \\u escape")
+						}
+						if lo >= 0xDC00 && lo <= 0xDFFF {
+							b = utf8.AppendRune(b, utf16.DecodeRune(rune(u), rune(lo)))
+							continue
+						}
+						p.pos = save // not a low surrogate: leave it for the next iteration
+					}
+					if !p.lenient {
 						return "", p.fail(path, "unpaired surrogate")
 					}
-					p.pos += 2
-					lo, ok := p.hex4()
-					if !ok {
-						return "", p.fail(path, "invalid \\u escape")
-					}
-					if lo < 0xDC00 || lo > 0xDFFF {
+					b = appendSurrogate(b, u)
+				case u >= 0xDC00 && u <= 0xDFFF:
+					if !p.lenient {
 						return "", p.fail(path, "unpaired surrogate")
 					}
-					b = utf8.AppendRune(b, utf16.DecodeRune(rune(u), rune(lo)))
+					b = appendSurrogate(b, u)
 				default:
 					b = utf8.AppendRune(b, rune(u))
 				}
@@ -340,6 +367,14 @@ func (p *parser) str(path string) (string, error) {
 			r, size := utf8.DecodeRune(p.data[p.pos:])
 			if r == utf8.RuneError && size == 1 {
 				// ED A0..BF is how a surrogate would look if someone wrote it into UTF-8.
+				if isSurrogateBytes(p.data[p.pos:]) {
+					if !p.lenient {
+						return "", p.fail(path, "unpaired surrogate")
+					}
+					b = append(b, p.data[p.pos:p.pos+3]...)
+					p.pos += 3
+					continue
+				}
 				if c == 0xED && p.pos+1 < len(p.data) && p.data[p.pos+1] >= 0xA0 {
 					return "", p.fail(path, "unpaired surrogate")
 				}
@@ -559,7 +594,7 @@ func (e *encoder) encode(v any, path string) error {
 		if !utf8.ValidString(x) {
 			return &Error{Msg: "invalid UTF-8", Path: path, Offset: -1}
 		}
-		writeString(&e.buf, x)
+		writeString(&e.buf, x, false)
 	case int:
 		return e.integer(int64(x), path)
 	case int64:
@@ -602,7 +637,7 @@ func (e *encoder) encode(v any, path string) error {
 				e.buf.WriteByte(',')
 			}
 			e.newline()
-			writeString(&e.buf, k)
+			writeString(&e.buf, k, false)
 			e.colon()
 			if err := e.encode(x[k], path+"."+k); err != nil {
 				return err
@@ -646,7 +681,7 @@ func (e *encoder) value(v *Value, path string) error {
 		}
 		return e.integer(v.Int, path)
 	case String:
-		writeString(&e.buf, v.Str)
+		return e.str(v.Str, path)
 	case Array:
 		e.buf.WriteByte('[')
 		e.level++
@@ -682,7 +717,9 @@ func (e *encoder) value(v *Value, path string) error {
 				e.buf.WriteByte(',')
 			}
 			e.newline()
-			writeString(&e.buf, m.Key)
+			if err := e.str(m.Key, path); err != nil {
+				return err
+			}
 			e.colon()
 			if err := e.value(m.Value, path+"."+m.Key); err != nil {
 				return err
@@ -699,12 +736,37 @@ func (e *encoder) value(v *Value, path string) error {
 	return nil
 }
 
-// writeString applies the spec §1.5 escape table to a valid UTF-8 string.
-func writeString(b *bytes.Buffer, s string) {
+// str writes a string from a parsed Value. A lone surrogate kept by ParseLenient is refused in
+// canonical output and written back as a \u escape in pretty output.
+func (e *encoder) str(s, path string) error {
+	if utf8.ValidString(s) {
+		writeString(&e.buf, s, false)
+		return nil
+	}
+	if !e.pretty {
+		return &Error{Msg: "unpaired surrogate", Path: path, Offset: -1}
+	}
+	writeString(&e.buf, s, true)
+	return nil
+}
+
+// writeString applies the spec §1.5 escape table. With lenient set, a surrogate stored as three
+// bytes is written as \uXXXX rather than as bytes that are not UTF-8.
+func writeString(b *bytes.Buffer, s string, lenient bool) {
 	const hexDigits = "0123456789abcdef"
 	b.WriteByte('"')
 	for i := 0; i < len(s); i++ {
 		c := s[i]
+		if lenient && isSurrogateBytes([]byte(s[i:min(i+3, len(s))])) {
+			u := 0xD000 | uint16(s[i+1]&0x3F)<<6 | uint16(s[i+2]&0x3F)
+			b.WriteString(`\u`)
+			b.WriteByte(hexDigits[u>>12])
+			b.WriteByte(hexDigits[(u>>8)&0xF])
+			b.WriteByte(hexDigits[(u>>4)&0xF])
+			b.WriteByte(hexDigits[u&0xF])
+			i += 2
+			continue
+		}
 		switch c {
 		case '\b':
 			b.WriteString(`\b`)
