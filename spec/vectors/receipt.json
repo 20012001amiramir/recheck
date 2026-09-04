@@ -1,5 +1,5 @@
 {
-  "note": "One sealed receipt signed with spec/vectors/test-key.json, its public projection, an unchained receipt over the same body, then three copies a verifier must reject.",
+  "note": "One sealed receipt signed with spec/vectors/test-key.json, its public projection, an unchained receipt over the same body, then five copies a verifier must reject.",
   "key": {
     "key_id": "eb-receipt-test",
     "public_key": "+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ="
@@ -185,6 +185,7 @@
       "claims": 3,
       "resolved": 1,
       "no_access": 1,
+      "not_found": 0,
       "unreachable": 0,
       "unsupported": 1,
       "says_match": 1,
@@ -212,18 +213,18 @@
         "drift_min_bp": 7500
       }
     },
-    "self_hash": "1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5",
+    "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
     "signatures": [
       {
         "key_id": "eb-receipt-test",
         "alg": "ed25519",
-        "sig": "ilqvPktREX4LAxwj6p9c/EqhaOS7E5YijglEt91fDhAtz5h03oCsJu0QMtBinbDiQ7mWB/uu24L4DWT3DEWxBQ==",
+        "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
         "role": "issuer"
       }
     ]
   },
-  "self_hash": "1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5",
-  "canonical_sha256": "9835aeb30839af44ebe27ca4f103a175c928b623ce2a61c4b7d1bf7f518ac269",
+  "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+  "canonical_sha256": "4e400c73b500acfce654512a9cf647e3dfd6cfeb6c41b356185b8f3070621826",
   "projection": {
     "v": 1,
     "kind": "exhibitb.receipt",
@@ -250,6 +251,47 @@
       "alg": "HMAC-SHA256",
       "key_sha256": "e812574a8171359a7237508365767609e18fac559f047b20dcbd5a7d6624ac81"
     },
+    "counts": {
+      "claims": 3,
+      "resolved": 1,
+      "no_access": 1,
+      "not_found": 0,
+      "unreachable": 0,
+      "unsupported": 1,
+      "says_match": 1,
+      "says_drift": 0,
+      "says_not_found": 0,
+      "says_not_run": 2,
+      "holds_attempted": 1
+    },
+    "models": [
+      {
+        "role": "extract",
+        "model": "extract-model-2026-06"
+      },
+      {
+        "role": "refute",
+        "model": "refute-model-2026-06"
+      }
+    ],
+    "engine": {
+      "name": "exhibitb",
+      "version": "0.1.0",
+      "normalize": "norm@1",
+      "says_thresholds": {
+        "match_bp": 10000,
+        "drift_min_bp": 7500
+      }
+    },
+    "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+    "signatures": [
+      {
+        "key_id": "eb-receipt-test",
+        "alg": "ed25519",
+        "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+        "role": "issuer"
+      }
+    ],
     "claims": [
       {
         "n": 1,
@@ -390,46 +432,6 @@
         },
         "refutation_attempted": false,
         "dissent": null
-      }
-    ],
-    "counts": {
-      "claims": 3,
-      "resolved": 1,
-      "no_access": 1,
-      "unreachable": 0,
-      "unsupported": 1,
-      "says_match": 1,
-      "says_drift": 0,
-      "says_not_found": 0,
-      "says_not_run": 2,
-      "holds_attempted": 1
-    },
-    "models": [
-      {
-        "role": "extract",
-        "model": "extract-model-2026-06"
-      },
-      {
-        "role": "refute",
-        "model": "refute-model-2026-06"
-      }
-    ],
-    "engine": {
-      "name": "exhibitb",
-      "version": "0.1.0",
-      "normalize": "norm@1",
-      "says_thresholds": {
-        "match_bp": 10000,
-        "drift_min_bp": 7500
-      }
-    },
-    "self_hash": "1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5",
-    "signatures": [
-      {
-        "key_id": "eb-receipt-test",
-        "alg": "ed25519",
-        "sig": "ilqvPktREX4LAxwj6p9c/EqhaOS7E5YijglEt91fDhAtz5h03oCsJu0QMtBinbDiQ7mWB/uu24L4DWT3DEWxBQ==",
-        "role": "issuer"
       }
     ]
   },
@@ -615,6 +617,7 @@
         "claims": 3,
         "resolved": 1,
         "no_access": 1,
+        "not_found": 0,
         "unreachable": 0,
         "unsupported": 1,
         "says_match": 1,
@@ -642,17 +645,17 @@
           "drift_min_bp": 7500
         }
       },
-      "self_hash": "313d30f2549e1bb6d135bb47072a2dd511d3f19ac9a7edaaa2d616c43f8f7c7b",
+      "self_hash": "8e999b5392b76736ba656bd6d9f4e403b19bd764c3041adc86e297507df0e00b",
       "signatures": [
         {
           "key_id": "eb-receipt-test",
           "alg": "ed25519",
-          "sig": "HeDx+v4d4OeaLL6ycyCy4WTwKRvQNx2qHFaSojspUQr/GGTF1NQFQ0AXaPrhUvZdN+TUxR0dVk/1xraW7uohCw==",
+          "sig": "gKcBJpdhBvQF5p0s7OjqWjyv8h96YFfoG+WDa3c+u07NRT5NEc/otYmyCVIjtsP/msbgqErv6GbAiP7MknKwDg==",
           "role": "issuer"
         }
       ]
     },
-    "self_hash": "313d30f2549e1bb6d135bb47072a2dd511d3f19ac9a7edaaa2d616c43f8f7c7b"
+    "self_hash": "8e999b5392b76736ba656bd6d9f4e403b19bd764c3041adc86e297507df0e00b"
   },
   "tampered": [
     {
@@ -839,6 +842,7 @@
           "claims": 3,
           "resolved": 1,
           "no_access": 1,
+          "not_found": 0,
           "unreachable": 0,
           "unsupported": 1,
           "says_match": 1,
@@ -866,12 +870,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5",
+        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "ilqvPktREX4LAxwj6p9c/EqhaOS7E5YijglEt91fDhAtz5h03oCsJu0QMtBinbDiQ7mWB/uu24L4DWT3DEWxBQ==",
+            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
             "role": "issuer"
           }
         ]
@@ -1061,6 +1065,7 @@
           "claims": 3,
           "resolved": 1,
           "no_access": 1,
+          "not_found": 0,
           "unreachable": 0,
           "unsupported": 1,
           "says_match": 1,
@@ -1088,12 +1093,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5",
+        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "i1qvPktREX4LAxwj6p9c/EqhaOS7E5YijglEt91fDhAtz5h03oCsJu0QMtBinbDiQ7mWB/uu24L4DWT3DEWxBQ==",
+            "sig": "GQpsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
             "role": "issuer"
           }
         ]
@@ -1283,6 +1288,7 @@
           "claims": 3,
           "resolved": 1,
           "no_access": 1,
+          "not_found": 0,
           "unreachable": 0,
           "unsupported": 1,
           "says_match": 1,
@@ -1310,12 +1316,458 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5",
+        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "ilqvPktREX4LAxwj6p9c/EqhaOS7E5YijglEt91fDhAtz5h03oCsJu0QMtBinbDiQ7mWB/uu24L4DWT3DEWxBQ==",
+            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "role": "issuer"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a lone surrogate (the escape \\ud83d) in issuer.url: the shape rules admit it, the canonical form has no bytes for it",
+      "first_failure": "schema",
+      "receipt": {
+        "v": 1,
+        "kind": "exhibitb.receipt",
+        "id": "eb_2m4Kq8Xr7vTb3nHd",
+        "seq": 1,
+        "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+        "issued_at": "2026-09-03T11:22:44Z",
+        "issuer": {
+          "name": "EXHIBIT B",
+          "url": "https://exhibitb.autofract.com/\ud83d",
+          "key_id": "eb-receipt-test",
+          "public_key": "+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ="
+        },
+        "scope_disclaimer": "Attests what was checked, against which sources, at what time. Not a claim of truth.",
+        "document": {
+          "sha256": "43cc23fa52b87b4cc1d02b5b114154151d6adddb17c9fddc06b027fa99e24008",
+          "bytes": 812004,
+          "media_type": "application/pdf",
+          "text_sha256": "71950bf27a310ed916dc56ed4083b6abd97cfd951fbcc5de4d9344dc22d3b1c6",
+          "chars": 38204,
+          "extractor": "unpdf@1"
+        },
+        "binding": {
+          "alg": "HMAC-SHA256",
+          "key_sha256": "e812574a8171359a7237508365767609e18fac559f047b20dcbd5a7d6624ac81"
+        },
+        "claims": [
+          {
+            "n": 1,
+            "claim_hmac": "ae3effe6bb2f5b785f7e2b443467fd4ce374a5fd7ce18019a268f0c253e46f5c",
+            "quote_hmac": "f2c7cf24d2736461298d70e3fbdca3f2dbee0027c783e01a351d99c36ab051e4",
+            "doc_span": [
+              120,
+              268
+            ],
+            "locator": {
+              "type": "url",
+              "value": "https://www.example.org/reports/2026/q1.pdf",
+              "url": "https://www.example.org/reports/2026/q1.pdf"
+            },
+            "level": "SAYS",
+            "exists": {
+              "verdict": "RESOLVED",
+              "final_url": "https://cdn.example.org/reports/2026/q1.pdf",
+              "http_status": 200,
+              "fetched_at": "2026-09-03T11:22:33Z",
+              "content_type": "application/pdf",
+              "bytes": 481233,
+              "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde",
+              "text_sha256": "578c656a52e97f852c876e7ab070bca12a9a9cc1cf59d25470236818415ce8af",
+              "retrievers": [
+                {
+                  "id": "A",
+                  "vantage": "origin",
+                  "status": 200,
+                  "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde"
+                },
+                {
+                  "id": "B",
+                  "vantage": "relay",
+                  "status": 200,
+                  "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde"
+                }
+              ],
+              "retriever_disagreement": false,
+              "single_retriever": false,
+              "registry": null,
+              "archive_url": "https://web.archive.org/web/20260903112300/https://www.example.org/reports/2026/q1.pdf",
+              "archive_status": "archived",
+              "archive_job_id": "spn2-0123456789abcdef"
+            },
+            "says": {
+              "verdict": "MATCH",
+              "reason": null,
+              "quoted_span": [
+                1044,
+                1180
+              ],
+              "match_kind": "exact",
+              "overlap_bp": 10000
+            },
+            "refutation_attempted": true,
+            "dissent": null
+          },
+          {
+            "n": 2,
+            "claim_hmac": "7eaf41f74f076bff9778f8be49c58129f7dd18abff939bf58058147fc0fdb8e7",
+            "quote_hmac": "60af6f683cc4ce62078f65c870f4087b18a4548a352242c873f2d84fdfa86cb7",
+            "doc_span": [
+              301,
+              455
+            ],
+            "locator": {
+              "type": "doi",
+              "value": "10.1136/bmj.n1234",
+              "url": "https://doi.org/10.1136/bmj.n1234"
+            },
+            "level": "SAYS",
+            "exists": {
+              "verdict": "RESOLVED_NO_ACCESS",
+              "final_url": "https://www.bmj.com/content/380/bmj.n1234",
+              "http_status": 403,
+              "fetched_at": "2026-09-03T11:22:41Z",
+              "content_type": null,
+              "bytes": null,
+              "content_sha256": null,
+              "text_sha256": null,
+              "retrievers": [
+                {
+                  "id": "A",
+                  "vantage": "origin",
+                  "status": 403,
+                  "content_sha256": null
+                }
+              ],
+              "retriever_disagreement": false,
+              "single_retriever": true,
+              "registry": {
+                "agency": "crossref",
+                "status": 200
+              },
+              "archive_url": null,
+              "archive_status": "skipped",
+              "archive_job_id": null
+            },
+            "says": {
+              "verdict": "NOT_RUN",
+              "reason": "no_source_text",
+              "quoted_span": null,
+              "match_kind": null,
+              "overlap_bp": null
+            },
+            "refutation_attempted": false,
+            "dissent": null
+          },
+          {
+            "n": 3,
+            "claim_hmac": "be6f2dcbb176f849fb1436aeb4d5771819fbf9f68de5d15793fbf50d5bc87d10",
+            "quote_hmac": null,
+            "doc_span": [
+              600,
+              702
+            ],
+            "locator": {
+              "type": "unsupported",
+              "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
+              "url": null
+            },
+            "level": "EXISTS",
+            "exists": {
+              "verdict": "UNSUPPORTED_LOCATOR",
+              "final_url": null,
+              "http_status": null,
+              "fetched_at": null,
+              "content_type": null,
+              "bytes": null,
+              "content_sha256": null,
+              "text_sha256": null,
+              "retrievers": [],
+              "retriever_disagreement": false,
+              "single_retriever": false,
+              "registry": null,
+              "archive_url": null,
+              "archive_status": "skipped",
+              "archive_job_id": null
+            },
+            "says": {
+              "verdict": "NOT_RUN",
+              "reason": "unsupported_locator",
+              "quoted_span": null,
+              "match_kind": null,
+              "overlap_bp": null
+            },
+            "refutation_attempted": false,
+            "dissent": null
+          }
+        ],
+        "counts": {
+          "claims": 3,
+          "resolved": 1,
+          "no_access": 1,
+          "not_found": 0,
+          "unreachable": 0,
+          "unsupported": 1,
+          "says_match": 1,
+          "says_drift": 0,
+          "says_not_found": 0,
+          "says_not_run": 2,
+          "holds_attempted": 1
+        },
+        "models": [
+          {
+            "role": "extract",
+            "model": "extract-model-2026-06"
+          },
+          {
+            "role": "refute",
+            "model": "refute-model-2026-06"
+          }
+        ],
+        "engine": {
+          "name": "exhibitb",
+          "version": "0.1.0",
+          "normalize": "norm@1",
+          "says_thresholds": {
+            "match_bp": 10000,
+            "drift_min_bp": 7500
+          }
+        },
+        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "signatures": [
+          {
+            "key_id": "eb-receipt-test",
+            "alg": "ed25519",
+            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "role": "issuer"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a non-ASCII space (U+00A0, literal in the file) inside locator.url: whitespace, so not a URL",
+      "first_failure": "schema",
+      "receipt": {
+        "v": 1,
+        "kind": "exhibitb.receipt",
+        "id": "eb_2m4Kq8Xr7vTb3nHd",
+        "seq": 1,
+        "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+        "issued_at": "2026-09-03T11:22:44Z",
+        "issuer": {
+          "name": "EXHIBIT B",
+          "url": "https://exhibitb.autofract.com",
+          "key_id": "eb-receipt-test",
+          "public_key": "+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ="
+        },
+        "scope_disclaimer": "Attests what was checked, against which sources, at what time. Not a claim of truth.",
+        "document": {
+          "sha256": "43cc23fa52b87b4cc1d02b5b114154151d6adddb17c9fddc06b027fa99e24008",
+          "bytes": 812004,
+          "media_type": "application/pdf",
+          "text_sha256": "71950bf27a310ed916dc56ed4083b6abd97cfd951fbcc5de4d9344dc22d3b1c6",
+          "chars": 38204,
+          "extractor": "unpdf@1"
+        },
+        "binding": {
+          "alg": "HMAC-SHA256",
+          "key_sha256": "e812574a8171359a7237508365767609e18fac559f047b20dcbd5a7d6624ac81"
+        },
+        "claims": [
+          {
+            "n": 1,
+            "claim_hmac": "ae3effe6bb2f5b785f7e2b443467fd4ce374a5fd7ce18019a268f0c253e46f5c",
+            "quote_hmac": "f2c7cf24d2736461298d70e3fbdca3f2dbee0027c783e01a351d99c36ab051e4",
+            "doc_span": [
+              120,
+              268
+            ],
+            "locator": {
+              "type": "url",
+              "value": "https://www.example.org/reports/2026/q1.pdf",
+              "url": "https://www.example.org/reports/2026/q1 .pdf"
+            },
+            "level": "SAYS",
+            "exists": {
+              "verdict": "RESOLVED",
+              "final_url": "https://cdn.example.org/reports/2026/q1.pdf",
+              "http_status": 200,
+              "fetched_at": "2026-09-03T11:22:33Z",
+              "content_type": "application/pdf",
+              "bytes": 481233,
+              "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde",
+              "text_sha256": "578c656a52e97f852c876e7ab070bca12a9a9cc1cf59d25470236818415ce8af",
+              "retrievers": [
+                {
+                  "id": "A",
+                  "vantage": "origin",
+                  "status": 200,
+                  "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde"
+                },
+                {
+                  "id": "B",
+                  "vantage": "relay",
+                  "status": 200,
+                  "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde"
+                }
+              ],
+              "retriever_disagreement": false,
+              "single_retriever": false,
+              "registry": null,
+              "archive_url": "https://web.archive.org/web/20260903112300/https://www.example.org/reports/2026/q1.pdf",
+              "archive_status": "archived",
+              "archive_job_id": "spn2-0123456789abcdef"
+            },
+            "says": {
+              "verdict": "MATCH",
+              "reason": null,
+              "quoted_span": [
+                1044,
+                1180
+              ],
+              "match_kind": "exact",
+              "overlap_bp": 10000
+            },
+            "refutation_attempted": true,
+            "dissent": null
+          },
+          {
+            "n": 2,
+            "claim_hmac": "7eaf41f74f076bff9778f8be49c58129f7dd18abff939bf58058147fc0fdb8e7",
+            "quote_hmac": "60af6f683cc4ce62078f65c870f4087b18a4548a352242c873f2d84fdfa86cb7",
+            "doc_span": [
+              301,
+              455
+            ],
+            "locator": {
+              "type": "doi",
+              "value": "10.1136/bmj.n1234",
+              "url": "https://doi.org/10.1136/bmj.n1234"
+            },
+            "level": "SAYS",
+            "exists": {
+              "verdict": "RESOLVED_NO_ACCESS",
+              "final_url": "https://www.bmj.com/content/380/bmj.n1234",
+              "http_status": 403,
+              "fetched_at": "2026-09-03T11:22:41Z",
+              "content_type": null,
+              "bytes": null,
+              "content_sha256": null,
+              "text_sha256": null,
+              "retrievers": [
+                {
+                  "id": "A",
+                  "vantage": "origin",
+                  "status": 403,
+                  "content_sha256": null
+                }
+              ],
+              "retriever_disagreement": false,
+              "single_retriever": true,
+              "registry": {
+                "agency": "crossref",
+                "status": 200
+              },
+              "archive_url": null,
+              "archive_status": "skipped",
+              "archive_job_id": null
+            },
+            "says": {
+              "verdict": "NOT_RUN",
+              "reason": "no_source_text",
+              "quoted_span": null,
+              "match_kind": null,
+              "overlap_bp": null
+            },
+            "refutation_attempted": false,
+            "dissent": null
+          },
+          {
+            "n": 3,
+            "claim_hmac": "be6f2dcbb176f849fb1436aeb4d5771819fbf9f68de5d15793fbf50d5bc87d10",
+            "quote_hmac": null,
+            "doc_span": [
+              600,
+              702
+            ],
+            "locator": {
+              "type": "unsupported",
+              "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
+              "url": null
+            },
+            "level": "EXISTS",
+            "exists": {
+              "verdict": "UNSUPPORTED_LOCATOR",
+              "final_url": null,
+              "http_status": null,
+              "fetched_at": null,
+              "content_type": null,
+              "bytes": null,
+              "content_sha256": null,
+              "text_sha256": null,
+              "retrievers": [],
+              "retriever_disagreement": false,
+              "single_retriever": false,
+              "registry": null,
+              "archive_url": null,
+              "archive_status": "skipped",
+              "archive_job_id": null
+            },
+            "says": {
+              "verdict": "NOT_RUN",
+              "reason": "unsupported_locator",
+              "quoted_span": null,
+              "match_kind": null,
+              "overlap_bp": null
+            },
+            "refutation_attempted": false,
+            "dissent": null
+          }
+        ],
+        "counts": {
+          "claims": 3,
+          "resolved": 1,
+          "no_access": 1,
+          "not_found": 0,
+          "unreachable": 0,
+          "unsupported": 1,
+          "says_match": 1,
+          "says_drift": 0,
+          "says_not_found": 0,
+          "says_not_run": 2,
+          "holds_attempted": 1
+        },
+        "models": [
+          {
+            "role": "extract",
+            "model": "extract-model-2026-06"
+          },
+          {
+            "role": "refute",
+            "model": "refute-model-2026-06"
+          }
+        ],
+        "engine": {
+          "name": "exhibitb",
+          "version": "0.1.0",
+          "normalize": "norm@1",
+          "says_thresholds": {
+            "match_bp": 10000,
+            "drift_min_bp": 7500
+          }
+        },
+        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "signatures": [
+          {
+            "key_id": "eb-receipt-test",
+            "alg": "ed25519",
+            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
             "role": "issuer"
           }
         ]

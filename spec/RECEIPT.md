@@ -35,23 +35,28 @@ Sections:
   characters: a 32-byte SHA-256 digest. Uppercase is never produced and never accepted.
 - **sha256** — SHA-256 (FIPS 180-4) over exactly the bytes stated.
 - **base64** — RFC 4648 §4, the standard alphabet `A–Z a–z 0–9 + /`, with `=` padding, no line
-  breaks. The URL-safe alphabet is never produced and never accepted.
+  breaks, and *canonical* (§3): the string re-encodes to itself. The URL-safe alphabet is never
+  produced and never accepted.
 - **ed25519** — RFC 8032 "pure" Ed25519: no pre-hashing, no context string, 32-byte public keys,
   64-byte signatures. Signatures are deterministic, so signing the same bytes twice with the same
   key produces the same signature.
 - **Strings** are sequences of UTF-16 code units, as in ECMAScript. Every length limit in this
-  document counts UTF-16 code units — not bytes, not code points. `"😀"` has length 2.
+  document counts UTF-16 code units — not bytes, not code points. `"😀"` has length 2. No Unicode
+  normalization is ever applied: a string is hashed and compared exactly as its code units stand,
+  so a precomposed `é` (U+00E9) and `e` + U+0301 are two different strings with two different
+  hashes.
 - **Regular expressions** use ECMAScript syntax without the `u` flag, matching on UTF-16 code
   units. `\d` is `[0-9]`. `\s` is the ECMAScript white-space set: U+0009, U+000A, U+000B, U+000C,
   U+000D, U+0020, U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF.
   An implementation whose engine defines `\s` as ASCII only (RE2, for one) must widen it to that
-  set where a rule below uses `\s`.
+  set where a rule below uses `\s`. `spec/vectors/receipt.json` carries a URL with a U+00A0 in it
+  precisely to catch an engine that does not.
 - **Integer** — a JSON number whose mathematical value is a whole number with
   |n| ≤ 9007199254740991 (2^53 − 1). See §1.4 for why the textual form of the token does not
   matter and the value does.
-- **Timestamp** — `YYYY-MM-DDTHH:MM:SSZ`, UTC, seconds precision, matching
-  `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`. Never a fraction, never an offset. The reference
-  implementation checks the shape only, not calendar validity.
+- **Timestamp** — `YYYY-MM-DDTHH:MM:SSZ`, UTC, seconds precision, matching the `timestamp`
+  pattern in §4.1. Never a fraction, never an offset. The reference implementation checks the
+  shape only, not calendar validity.
 - **Path notation** in error messages: `$` is the root, `$.key` a member, `$[3]` an element,
   composed as `$.claims[0].says.overlap_bp`.
 
@@ -68,7 +73,14 @@ canonical values, or an object whose members are canonical values. Nothing else 
 serializer that meets anything else — a non-integer number, NaN, an infinity, an undefined value, a
 function, a lone surrogate — fails with an error naming the path. The reference implementation
 throws `CanonicalError` with messages of the form `non-integer number at $.claims[0].says.overlap_bp`,
-`unpaired surrogate at $.a.b`, `unsupported value at $.u`.
+`unpaired surrogate at $.issuer.url`, `unsupported value at $.u`.
+
+For a verifier, every one of those failures is a `schema` failure (§12, check 1), never a crash and
+never a different hash. In particular: **an unpaired surrogate anywhere in the input is a `schema`
+failure.** A JSON decoder that quietly substitutes U+FFFD for a lone surrogate escape (`\ud83d` with
+no low surrogate after it) would hand the verifier a different document than the one on disk, so
+such a verifier must pre-check the raw bytes for a lone surrogate escape before decoding, and
+refuse the file when it finds one.
 
 ### 1.2 Whitespace
 
@@ -115,11 +127,12 @@ escaped as follows and in no other way:
 | any other unit below U+0020 | `\u` followed by four lowercase hex digits: U+0000 → `\u0000`, U+001B → `\u001b`, U+001F → `\u001f` |
 | everything else | the code unit itself, encoded as UTF-8 |
 
-"Everything else" includes U+007F (DEL), U+0080 and above, U+2028 and U+2029, and all non-ASCII
-text. A surrogate pair (a high surrogate U+D800–U+DBFF immediately followed by a low surrogate
-U+DC00–U+DFFF) is emitted as the four-byte UTF-8 encoding of the code point it names. A lone
-surrogate has no UTF-8 encoding and is an error, not an escape. `/` is never escaped. `\uXXXX` is
-never used for a unit at or above U+0020, and the hex digits of a `\u` escape are always lowercase.
+"Everything else" includes U+007F (DEL), U+0080 and above, U+00A0, U+2028 and U+2029, and all
+non-ASCII text. A surrogate pair (a high surrogate U+D800–U+DBFF immediately followed by a low
+surrogate U+DC00–U+DFFF) is emitted as the four-byte UTF-8 encoding of the code point it names. A
+lone surrogate has no UTF-8 encoding and is an error, not an escape — see §1.1 for what a verifier
+does with one. `/` is never escaped. `\uXXXX` is never used for a unit at or above U+0020, and the
+hex digits of a `\u` escape are always lowercase.
 
 Object keys are serialized by the same rule.
 
@@ -132,15 +145,25 @@ are never sorted. An empty array is `[]`.
 
 `{`, the members serialized as `"key":value` and joined by `,`, `}`. An empty object is `{}`.
 
-Members are sorted by key. Keys are compared as sequences of UTF-16 code units, unit by unit,
+Members are sorted by key. Keys are compared **after unescaping** — as the sequences of UTF-16
+code units they denote, not as the escaped text that spelled them in the input — unit by unit,
 numerically; where one key is a prefix of another the shorter sorts first; the empty key sorts
 first of all. This is RFC 8785 §3.2.3 and the default order of ECMAScript `Array.prototype.sort()`.
-It is not code-point order and not byte order of the UTF-8 encoding: a key whose first code unit
-is a high surrogate (U+D800–U+DBFF, the start of any character above U+FFFF) sorts *before* a key
+It is not code-point order, not byte order of the UTF-8 encoding, and not numeric order: the keys
+`"1"`, `"10"`, `"9"` sort in exactly that order, because U+0031 is below U+0039, whatever an
+implementation's object model does with integer-looking keys. A key whose first code unit is a
+high surrogate (U+D800–U+DBFF, the start of any character above U+FFFF) sorts *before* a key
 starting with U+E000–U+FFFF. Concretely, for the four one-character keys U+FFFF, U+1F600 (`😀`, the
-units U+D83D U+DE00), U+E000 and U+D7FF, the order is U+D7FF, U+1F600, U+E000, U+FFFF — the surrogate pair lands between U+D7FF and U+E000, where its first unit puts it, not after U+FFFF where its code point would. A JSON object cannot carry two
-members with the same key; an implementation whose parser silently keeps the last duplicate
-should refuse duplicates instead, since the server never emits them.
+units U+D83D U+DE00), U+E000 and U+D7FF, the order is U+D7FF, U+1F600, U+E000, U+FFFF — the
+surrogate pair lands between U+D7FF and U+E000, where its first unit puts it, not after U+FFFF
+where its code point would.
+
+**Duplicate member names are refused.** An object in which the same key (after unescaping) occurs
+twice — `{"a":1,"a":2}`, or `{"a":1,"\u0061":2}` — is a `schema` failure. A parser that keeps the
+last occurrence, as most do, would let two verifiers hash two different bodies from one file, so a
+verifier must detect the duplicate in the raw text before or while parsing, not after. The
+reference implementation does it with a single pass over the text that tracks member names per
+object. The server never emits a duplicate.
 
 Sorting applies at every level of nesting, and to objects inside arrays. Arrays themselves keep
 their order.
@@ -150,7 +173,15 @@ their order.
 The canonical bytes are the UTF-8 encoding of the string produced above, with no byte-order mark
 and no trailing newline. Every hash in §2 is over these bytes.
 
-### 1.9 Worked examples
+### 1.9 Input
+
+The input to a verifier is a JSON *text* whose top-level value is an object: a receipt (§4), a
+projection (§11), a root file (§9). A top-level array, string, number or literal is a `schema`
+failure. A byte-order mark is not JSON: a file that starts with U+FEFF is a `schema` failure. JSON
+whitespace between tokens, member order and the spelling of number tokens (§1.4) are all
+irrelevant, because the verifier re-canonicalizes what it read.
+
+### 1.10 Worked examples
 
 From `spec/vectors/canonical.json`:
 
@@ -158,6 +189,7 @@ From `spec/vectors/canonical.json`:
 {}                                          → {}
 {"b":1,"a":2,"C":3,"_":4}                   → {"C":3,"_":4,"a":2,"b":1}
 {"ab":1,"a":2,"aa":3,"":4}                  → {"":4,"a":2,"aa":3,"ab":1}
+{"9":1,"10":2,"1":3}                        → {"1":3,"10":2,"9":1}
 {"é":1,"z":2,"A":3,"É":4}                   → {"A":3,"z":2,"É":4,"é":1}
 {"c":"␀␁␟"}  (U+0000 U+0001 U+001F)      → {"c":"\u0000\u0001\u001f"}
 {"zero":0,"one":1,"neg":-1}                 → {"neg":-1,"one":1,"zero":0}
@@ -194,26 +226,36 @@ array hashing to exactly what the same object hashes to without them.
   not the canonical JSON, not a hash of the hash. Ed25519 hashes its own input internally, so
   signing the digest directly is the whole scheme.
 - **Algorithm.** Ed25519 (§0). The signature is 64 bytes.
-- **Encoding.** base64 (§0) of the 64 bytes: always 88 characters matching
-  `^[A-Za-z0-9+/]{86}==$`. A value that does not match this pattern is refused by the schema check
-  before any cryptography runs.
-- **Public keys.** The 32 raw Ed25519 public-key bytes in base64: always 44 characters matching
-  `^[A-Za-z0-9+/]{43}=$`. This is the form used everywhere — inside receipts, in `keys.json`, in
-  the vectors, in a pinned key set. It relates to the DER SubjectPublicKeyInfo encoding by a fixed
-  12-byte prefix: `SPKI = 302a300506032b6570032100 ‖ raw32`, so either form converts to the other
-  without an ASN.1 parser.
-- **Verification.** Decode the public key (must be 32 bytes) and the signature (must be 64 bytes),
-  decode `self_hash` (must be 32 bytes), run Ed25519 verify. Any decoding failure is a verification
-  failure, never an error.
+- **Canonical base64.** Every base64 value in this format — a signature, a public key — must be
+  *canonical*: the standard alphabet, exact `=` padding, no whitespace, and the unused low bits of
+  the last symbol zero, so that decoding the string and re-encoding the bytes reproduces the
+  string exactly. A 32-byte key is always 44 characters matching the `pubkey-b64` pattern of §4.1;
+  its 43rd symbol carries two data bits and four bits that must be zero, so only `A`, `Q`, `g` or
+  `w` can stand there. A 64-byte signature is always 88 characters matching `sig-b64`; its 86th
+  symbol carries four data bits and two that must be zero. A decoder that tolerates non-zero
+  unused bits, a missing pad, the URL-safe alphabet or stray characters reads the same bytes from
+  several spellings; this format allows exactly one spelling, and any other is a `schema` failure
+  before any cryptography runs. One key therefore has one spelling, and keys can be compared
+  either as bytes or as text with the same result — the verifier compares bytes (§12, check 4).
+- **Public keys.** The 32 raw Ed25519 public-key bytes in canonical base64. This is the form used
+  everywhere — inside receipts, in `keys.json`, in the vectors, in a pinned key set. It relates to
+  the DER SubjectPublicKeyInfo encoding by a fixed 12-byte prefix:
+  `SPKI = 302a300506032b6570032100 ‖ raw32`, so either form converts to the other without an ASN.1
+  parser.
+- **Verification.** Decode the public key (must be canonical base64 of 32 bytes) and the
+  signature (must be canonical base64 of 64 bytes), decode `self_hash` (must be 32 bytes), run
+  Ed25519 verify. Any decoding failure is a verification failure, never an error.
 - **Signature entries.** A receipt's `signatures` array holds objects
   `{"key_id", "alg": "ed25519", "sig", "role"}` with `role` either `"issuer"` or `"counter"`. A root
   file's `signatures` array holds `{"key_id", "alg": "ed25519", "sig"}` — no `role`. In both, `sig`
   is over the containing document's `self_hash`.
-- **The issuer signature** is the entry whose `role` is `"issuer"`. There is exactly one; its
-  `key_id` must equal `issuer.key_id`; it is verified against `issuer.public_key` (§12, check 3)
-  and that key is then compared with the pinned set (§12, check 4). A `"counter"` entry is a second
-  party's signature added after issue; version 1 verifiers do not verify counter signatures and
-  must not fail a receipt for carrying one.
+- **The issuer signature.** A receipt carries **exactly one** entry whose `role` is `"issuer"`. Zero
+  such entries, or two or more, is a `signature` failure (§12, check 3) — the first says the
+  receipt was never issued, the second that it cannot say by whom. The one entry's `key_id` must
+  equal `issuer.key_id`; its `sig` is verified against `issuer.public_key`, and that key is then
+  compared with the pinned set (§12, check 4). A `"counter"` entry is a second party's signature
+  added after issue; version 1 verifiers do not verify counter signatures and must not fail a
+  receipt for carrying one.
 
 ## 4. Receipt v1
 
@@ -221,7 +263,7 @@ A receipt is a JSON object. The rules that hold for every object in it:
 
 - **Strict.** Every member listed is required and no member not listed is allowed. An unknown
   member anywhere — top level, inside a claim, inside a retriever — is a schema failure.
-- **Nullable means explicit.** A member marked `| null` is present and `null` when it has no
+- **Nullable means explicit.** A member marked `or null` is present and `null` when it has no
   value. Members are never omitted.
 - **No free text.** Every string is an enum, a digest, base64, a URL with no whitespace, a
   timestamp, a lowercase token or a shape-checked identifier. A verifier enforces the shapes;
@@ -231,23 +273,59 @@ A receipt is a JSON object. The rules that hold for every object in it:
 
 ### 4.1 Primitive shapes
 
+Every string shape is a name below, defined by a pattern (§0's regular-expression conventions)
+and, where given, a maximum length in UTF-16 code units. The tables that follow refer to these
+names.
+
+```
+hex64          ^[0-9a-f]{64}$
+timestamp      ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$
+date           ^\d{4}-\d{2}-\d{2}$
+http-url       ^https?:\/\/[^\s"'<>\\^`{|}]+$                                    length ≤ 2000
+media-type     ^[a-z0-9][a-z0-9!#$&^_.+-]{0,80}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,80}$  length ≤ 160
+extractor      ^[a-z0-9]+(?:[.-][a-z0-9]+)*(?:@[0-9a-z.-]+)?$                     length ≤ 40
+model-id       ^[a-z0-9][a-z0-9._-]{1,63}$
+semver         ^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$
+key-id         ^eb-(?:receipt|root)-[a-z0-9-]{1,20}$
+pubkey-b64     ^[A-Za-z0-9+/]{43}=$          and canonical, §3
+sig-b64        ^[A-Za-z0-9+/]{86}==$         and canonical, §3
+token(N)       ^[a-z][a-z0-9_]*$             length ≤ N
+receipt-id     ^eb_[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}$
+doi-value      ^10\.\d{4,9}\/\S+$            length ≤ 200
+pmid-value     ^\d{1,9}$
+case-cite      ^(?:\d{1,4}|\[\d{4}\])\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}\s\d{1,6}$
+                                              length ≤ 30
+retriever-id   ^[A-Za-z0-9_-]{1,16}$
+vantage        ^[a-z][a-z0-9_-]{0,23}$
+archive-job    ^[A-Za-z0-9_.:-]{1,80}$
+domain         ^[a-z0-9][a-z0-9._-]*$        length ≤ 253
+```
+
+Notes on the shapes:
+
+- `http-url` is an absolute `http` or `https` URL with no whitespace (§0's `\s`, so a U+00A0
+  inside it is refused) and none of the characters double quote, single quote, `<`, `>`,
+  backslash, caret, backtick, `{`, pipe, `}`.
+- `media-type` is a bare lowercase `type/subtype`, parameters stripped.
+- `extractor` names a tool at a version: `unpdf@1`, `mammoth@1`, `paste`.
+- `key-id` is the shape a receipt may name; production key ids are narrower (§13).
+- `token(N)` is a lowercase machine word, never a sentence.
+- `receipt-id` is `eb_` plus 16 characters from a 56-symbol alphabet with no `0 O 1 l I`.
+- `case-cite` is a reporter or neutral citation: a volume (or a bracketed year), one to three
+  reporter tokens each starting with a capital letter or a digit, and a page — at most five
+  whitespace-separated tokens and 30 characters, with exactly one whitespace character between
+  tokens (the engine collapses runs before sealing). `410 U.S. 113`, `123 S. Ct. 456`,
+  `123 F. Supp. 2d 456`, `123 F.3d 456`, `12 Cal. App. 4th 345`, `12 N.Y.S.2d 34`, `[2019] EWHC 12`,
+  `[2020] UKSC 1`, `2019 SCC 5` all fit; a sentence that happens to start with a year and end with
+  a number does not.
+
+The non-string primitives:
+
 | name | rule |
 |---|---|
-| hex64 | `^[0-9a-f]{64}$` |
-| timestamp | `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$` |
-| http-url | length ≤ 2000 and `` ^https?:\/\/[^\s"'<>\\^`{\|}]+$ `` — absolute, `http` or `https`, no whitespace (§0's `\s`), and none of: double quote, single quote, `<`, `>`, backslash, caret, backtick, `{`, pipe, `}` |
-| media-type | length ≤ 160 and `^[a-z0-9][a-z0-9!#$&^_.+-]{0,80}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,80}$` — a bare lowercase `type/subtype`, parameters stripped |
-| extractor | length ≤ 40 and `^[a-z0-9]+(?:[.-][a-z0-9]+)*(?:@[0-9a-z.-]+)?$` — a tool name at a version, e.g. `unpdf@1`, `mammoth@1`, `paste` |
-| model-id | `^[a-z0-9][a-z0-9._-]{1,63}$` |
-| semver | `^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$` |
-| key-id | `^eb-(?:receipt\|root)-[a-z0-9-]{1,20}$` (production keys are narrower, §13) |
-| pubkey-b64 | `^[A-Za-z0-9+/]{43}=$` |
-| sig-b64 | `^[A-Za-z0-9+/]{86}==$` |
-| token(N) | length ≤ N and `^[a-z][a-z0-9_]*$` — a lowercase machine word, never a sentence |
+| integer | §0 |
 | bp | integer 0 ≤ n ≤ 10000 (basis points) |
-| span | a two-element array `[start, end]` of integers ≥ 0; the reference implementation does not check `start ≤ end` |
-| receipt-id | `^eb_[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}$` — `eb_` plus 16 characters from a 56-symbol alphabet with no `0 O 1 l I` |
-| date | `^\d{4}-\d{2}-\d{2}$` |
+| span | a two-element array `[start, end]` of integers with `0 ≤ start ≤ end` |
 
 ### 4.2 Top level
 
@@ -256,8 +334,8 @@ A receipt is a JSON object. The rules that hold for every object in it:
 | `v` | integer | the literal `1` |
 | `kind` | string | `"exhibitb.receipt"` (chained) or `"exhibitb.receipt.unchained"` (§5) |
 | `id` | receipt-id | |
-| `seq` | integer ≥ 1 \| null | position in the chain; `null` exactly when unchained |
-| `prev_hash` | hex64 \| null | `self_hash` of the receipt at `seq − 1`, or the genesis constant (§6) at `seq` 1; `null` exactly when unchained |
+| `seq` | integer ≥ 1 or null | position in the chain; `null` exactly when unchained |
+| `prev_hash` | hex64 or null | `self_hash` of the receipt at `seq − 1`, or the genesis constant (§6) at `seq` 1; `null` exactly when unchained |
 | `issued_at` | timestamp | the moment of sealing |
 | `issuer` | object | §4.3 |
 | `scope_disclaimer` | string | the literal `Attests what was checked, against which sources, at what time. Not a claim of truth.` |
@@ -268,7 +346,7 @@ A receipt is a JSON object. The rules that hold for every object in it:
 | `models` | array of model, ≤ 16 | §4.10 |
 | `engine` | object | §4.11 |
 | `self_hash` | hex64 | §2 |
-| `signatures` | array of signature, ≤ 8 | §3; empty only between build and sign, never in an issued receipt |
+| `signatures` | array of signature, ≤ 8 | §3; exactly one `"issuer"` entry in an issued receipt |
 
 ### 4.3 `issuer`
 
@@ -308,7 +386,7 @@ verifier treats all of them as opaque hex64 values.
 |---|---|
 | `n` | integer ≥ 1 — 1-based position |
 | `claim_hmac` | hex64 |
-| `quote_hmac` | hex64 \| null |
+| `quote_hmac` | hex64 or null |
 | `doc_span` | span — where the claim sits in the extracted text |
 | `locator` | object, §4.7 |
 | `level` | `"EXISTS"` or `"SAYS"` — how far the check went |
@@ -323,10 +401,10 @@ Discriminated on `type`:
 
 | `type` | `value` | `url` |
 |---|---|---|
-| `"url"` | http-url | http-url \| null |
-| `"doi"` | length ≤ 200 and `^10\.\d{4,9}\/\S+$` | http-url \| null |
-| `"pmid"` | `^\d{1,9}$` | http-url \| null |
-| `"case"` | length ≤ 80 and `^(?:\d{1,4}\|\[\d{4}\])\s[A-Za-z0-9.'&\- ]{1,60}\s\d{1,6}$` — volume (or bracketed year), reporter, page: `410 U.S. 113`, `[2019] EWHC 12`, `2019 SCC 5` | http-url \| null |
+| `"url"` | http-url | http-url or null |
+| `"doi"` | doi-value | http-url or null |
+| `"pmid"` | pmid-value | http-url or null |
+| `"case"` | case-cite | http-url or null |
 | `"unsupported"` | hex64 — the HMAC of the citation string (§4.5), because the string itself would be the claimant's own text | the literal `null` |
 
 ### 4.8 Verdicts
@@ -336,20 +414,20 @@ Discriminated on `type`:
 | member | rule |
 |---|---|
 | `verdict` | one of the five below |
-| `final_url` | http-url \| null — where the source was finally read from, after redirects |
-| `http_status` | integer 0…599 \| null |
-| `fetched_at` | timestamp \| null |
-| `content_type` | media-type \| null |
-| `bytes` | integer ≥ 0 \| null |
-| `content_sha256` | hex64 \| null — SHA-256 of the fetched bytes |
-| `text_sha256` | hex64 \| null — SHA-256 of the text extracted from them |
-| `retrievers` | array ≤ 8 of retriever objects, each with `id` matching `^[A-Za-z0-9_-]{1,16}$`, `vantage` matching `^[a-z][a-z0-9_-]{0,23}$`, `status` an integer 0…599 or the literal `"unavailable"`, and `content_sha256` hex64 \| null |
+| `final_url` | http-url or null — where the source was finally read from, after redirects |
+| `http_status` | integer 0…599 or null |
+| `fetched_at` | timestamp or null |
+| `content_type` | media-type or null |
+| `bytes` | integer ≥ 0 or null |
+| `content_sha256` | hex64 or null — SHA-256 of the fetched bytes |
+| `text_sha256` | hex64 or null — SHA-256 of the text extracted from them |
+| `retrievers` | array ≤ 8 of retriever objects, §4.8.3 |
 | `retriever_disagreement` | boolean — two retrievers fetched different bytes |
 | `single_retriever` | boolean — only one vantage answered |
-| `registry` | `{ agency: token(32), status: integer 0…999 }` \| null — the registry consulted for a doi/pmid/case locator and what it answered |
-| `archive_url` | http-url \| null |
+| `registry` | object `{ agency: token(32), status: integer 0…999 }` or null — the registry consulted for a doi/pmid/case locator and what it answered |
+| `archive_url` | http-url or null |
 | `archive_status` | `"archived"`, `"requested"`, `"failed"` or `"skipped"` |
-| `archive_job_id` | `^[A-Za-z0-9_.:-]{1,80}$` \| null |
+| `archive_job_id` | archive-job or null |
 
 `verdict` values:
 
@@ -369,23 +447,33 @@ merged.
 | member | rule |
 |---|---|
 | `verdict` | `"MATCH"`, `"DRIFT"`, `"NOT_FOUND"` or `"NOT_RUN"` |
-| `reason` | token(48) \| null — why, when `NOT_RUN` (for example `no_source_text`, `unsupported_locator`); not a closed list in version 1 |
-| `quoted_span` | span \| null — where in the source text the match was found |
+| `reason` | token(48) or null — why, when `NOT_RUN` (for example `no_source_text`, `unsupported_locator`); not a closed list in version 1 |
+| `quoted_span` | span or null — where in the source text the match was found |
 | `match_kind` | `"exact"`, `"overlap"` or null |
-| `overlap_bp` | bp \| null — how much of the quote the source carries, in basis points |
+| `overlap_bp` | bp or null — how much of the quote the source carries, in basis points |
 
 `MATCH` means the quote was found at or above `engine.says_thresholds.match_bp`; `DRIFT` means
 it was found between `drift_min_bp` and `match_bp`; `NOT_FOUND` means nothing at or above
 `drift_min_bp`; `NOT_RUN` means the SAYS check did not run, and `reason` says why.
 
+#### 4.8.3 A retriever
+
+| member | rule |
+|---|---|
+| `id` | retriever-id |
+| `vantage` | vantage |
+| `status` | integer 0…599, or the literal `"unavailable"` |
+| `content_sha256` | hex64 or null |
+
 ### 4.9 `counts`
 
-Ten integers ≥ 0: `claims`, `resolved`, `no_access`, `unreachable`, `unsupported`, `says_match`,
-`says_drift`, `says_not_found`, `says_not_run`, `holds_attempted`. They are the issuer's tallies
-over `claims` and are informational: a verifier does not cross-check them against the claims in
-version 1 (they are inside the hashed body, so they cannot be altered without failing
-`self_hash`). Note that there is no `not_found` tally for the `NOT_FOUND` exists verdict; the four
-exists tallies do not necessarily sum to `claims`.
+Eleven integers ≥ 0: `claims`, `resolved`, `no_access`, `not_found`, `unreachable`, `unsupported`,
+`says_match`, `says_drift`, `says_not_found`, `says_not_run`, `holds_attempted`. They are the
+issuer's tallies over `claims`: the five exists tallies (`resolved`, `no_access`, `not_found`,
+`unreachable`, `unsupported`) each count the claims with that `exists.verdict` and sum to `claims`;
+the four says tallies do the same for `says.verdict`; `holds_attempted` counts the claims with
+`refutation_attempted` true. They are inside the hashed body, so they cannot be altered without
+failing `self_hash`; a version 1 verifier does not cross-check them against the claims.
 
 ### 4.10 `models`
 
@@ -402,7 +490,7 @@ Each entry is `{ role: token(24), model: model-id }`.
 
 ### 4.12 A signature
 
-`{ key_id: key-id, alg: "ed25519", sig: sig-b64, role: "issuer" | "counter" }` — see §3.
+`{ key_id: key-id, alg: "ed25519", sig: sig-b64, role: "issuer" or "counter" }` — see §3.
 
 ## 5. Unchained receipts
 
@@ -458,12 +546,15 @@ genesis constant and `issued_at` `null` on an empty chain. `last_root` is
 `{"ok", "checked", "head_seq", "head_hash", "first_broken", "verified_at", "ms"}` where
 `first_broken` is `null` or `{"seq", "reason"}` with `reason` one of `prev_hash` (the link at that
 `seq` does not point at the receipt before it), `self_hash` (the stored receipt no longer hashes to
-its recorded `self_hash`), `signature` (the issuer signature does not verify under the key
+its recorded `self_hash` — including a stored document that cannot be canonicalized or parsed at
+all), `signature` (there is not exactly one issuer signature, or it does not verify under the key
 published for its `key_id`, or the embedded key differs from the published one), `root` (a rooted
 day's receipts no longer hash to the stored root; `seq` is that root's `last_seq`, or 0 for an empty
 day). The server verifies signatures against the keys it has published for the `key_id`, never
-against the key embedded in the receipt, so a receipt cannot vouch for itself. The answer is cached
-for sixty seconds.
+against the key embedded in the receipt, so a receipt cannot vouch for itself. The public answer
+is incremental — it trusts the prefix it walked before and checks only the receipts sealed since —
+and is cached for sixty seconds; a full walk from genesis runs nightly and replaces the cached
+answer, so an edit deep in the chain is reported publicly from the next nightly walk on.
 
 Both answer JSON with `cache-control: no-store`.
 
@@ -501,8 +592,8 @@ canonical JSON (§1) with `self_hash` per §2 and a signature per §3 under the 
 | `v` | the literal `1` |
 | `kind` | the literal `"exhibitb.root"` |
 | `date` | date — the UTC day |
-| `first_seq` | integer ≥ 1 \| null — `seq` of the day's first leaf; `null` on an empty day |
-| `last_seq` | integer ≥ 1 \| null — `seq` of its last leaf; `null` on an empty day |
+| `first_seq` | integer ≥ 1 or null — `seq` of the day's first leaf; `null` on an empty day |
+| `last_seq` | integer ≥ 1 or null — `seq` of its last leaf; `null` on an empty day |
 | `count` | integer ≥ 0 — number of leaves |
 | `root` | hex64 — `MTH` of the day (§8); the empty-tree value on an empty day |
 | `prev_root` | hex64 — `root` of the most recent earlier root file, or the genesis constant for the first file ever |
@@ -516,21 +607,28 @@ Rules:
 1. A root file is cut at or after 00:05 UTC on the day after `date`, once per day, in date order,
    so `prev_root` links every file to the one before it back to genesis. An empty day still gets a
    file: a gap in the series would be indistinguishable from a day somebody removed.
-2. Once stored a root file is never rewritten. A receipt that lands in an already-rooted day is
-   not in that day's tree; its proof stays pending (§10).
+2. Once stored a root file is never rewritten. If a receipt is nevertheless sealed with an
+   `issued_at` on a day that already has a root — which can only happen when the server's clock
+   steps backwards across midnight after 00:05 UTC — the day's leaves no longer hash to the
+   published root, and the server treats that exactly as it would treat tampering: the proof
+   endpoint answers *pending* for **every** receipt of that day, the one that arrived late included,
+   and the nightly replay reports `first_broken` with `reason` `root` at that day's `last_seq`,
+   which mails the operator. There is no automatic repair, because rewriting a published root is
+   the one thing this design forbids; the operator must resolve it by hand. Operationally: the
+   host clock must be disciplined by slewing, not stepping, and the five-minute margin before the
+   root job is the tolerance for ordinary drift.
 3. The file is published to a public repository as `roots/<date>.json`, and again as
    `roots/latest.json`, each containing the canonical bytes followed by one `\n`. The issuer also
    serves it at `GET /chain/root/<date>` as the canonical bytes with no trailing newline (404 until
    the day is rooted). Strip a trailing newline before hashing; better, parse and re-canonicalize.
-4. To verify a root file: parse; schema as above; `self_hash` recomputed per §2 must equal the
-   stated one; the first signature's `key_id` must equal `key_id`, and its `sig` must verify under
-   the pinned public key for that `key_id` (§13) — the file does not embed the key, so an unpinned
-   root key means the signature cannot be checked. Across consecutive files, each `prev_root` must
-   equal the previous `root`.
+4. To verify a root file: parse (§1.9); schema as above; `self_hash` recomputed per §2 must equal
+   the stated one; the first signature's `key_id` must equal `key_id`, and its `sig` must verify
+   under the pinned public key for that `key_id` (§13) — the file does not embed the key, so an
+   unpinned root key means the signature cannot be checked. Across consecutive files, each
+   `prev_root` must equal the previous `root`.
 
-The root file in `spec/vectors/root.json` covers three receipts of 2026-09-03 and hashes to
-`8a45d351ed3c006ec3dbcf01766b235385c8acec918e5756e369e8afbdaa1225`; its `root` is
-`738cd1fea57ceff0535739f56ed3d879bd352bd78ce027165164813474cbf2ee`.
+The root file in `spec/vectors/root.json` covers three receipts of 2026-09-03; its `self_hash`,
+`root` and signature are recorded there and must be reproduced exactly (§14).
 
 ## 10. Inclusion proof
 
@@ -553,7 +651,7 @@ The root file in `spec/vectors/root.json` covers three receipts of 2026-09-03 an
 Before the day is rooted the answer is `202 {"status":"pending","roots_at":"<timestamp>"}` where
 `roots_at` is the next 00:05 UTC. An unchained receipt answers `200 {"status":"unchained","roots_at":null}`.
 An unknown id is 404. The server withholds a proof (answers pending) if the day's leaves no longer
-hash to the stored root, so a served proof always points at a tree that was signed.
+hash to the stored root (§9 rule 2), so a served proof always points at a tree that was signed.
 
 `audit_path` is ordered from the leaf upward: the first entry is the hash of the leaf's sibling
 subtree, the last is the hash of the largest subtree not containing the leaf. Its length is 0 for
@@ -601,22 +699,26 @@ URL removed. The full receipt with its URLs is the creator's to download (that e
   `document`, `binding`, `counts`, `models`, `engine`, **`self_hash` and `signatures`**. A
   projection carries the *receipt's* hash and signatures; it is a view of a receipt, not a document
   that hashes to itself.
+- The server validates every projection against the projection schema at seal time, so a stored
+  projection always parses.
 
-`domain` (`^[a-z0-9][a-z0-9._-]*$`, length ≤ 253, or `null`):
+`domain` (the `domain` shape of §4.1, or `null`):
 
 - `type` `"url"`: the registrable host of `exists.final_url` when it is not `null`, else of
   `locator.value`.
 - `type` `"doi"`, `"pmid"`, `"case"`: `exists.registry.agency`, or `null` when `registry` is `null`.
 - `type` `"unsupported"`: `null`.
 
-Registrable host of a URL: parse it; take the hostname, lowercased; drop a leading `www.`; if it
-is an IPv4 literal or contains `:`, keep it whole; if it has two labels or fewer, keep it whole;
-otherwise keep the last two labels — or the last three when the last two are one of `ac.jp`,
-`ac.uk`, `co.in`, `co.jp`, `co.nz`, `co.uk`, `co.za`, `com.au`, `com.br`, `edu.au`, `gov.au`,
-`gov.uk`, `net.au`, `org.au`, `org.uk`. Unparseable → `null`. So
-`https://www.example.org/reports/q1.pdf` → `example.org`, `https://pubmed.ncbi.nlm.nih.gov/31234567/`
-→ `nih.gov`, `https://www.bmj.co.uk/content/1` → `bmj.co.uk`. A verifier never needs to compute
-this; it is listed so the projection is fully specified.
+Registrable host of a URL: parse it; take the hostname, lowercased; drop a leading `www.`; if what
+is left is empty, is bracketed (an IPv6 literal) or contains `:`, the answer is `null`; if any
+label is empty (`www.`, `a..b`), `null`; if it is an IPv4 literal, keep it whole; if it has two
+labels or fewer, keep it whole; otherwise keep the last two labels — or the last three when the
+last two are one of `ac.jp`, `ac.uk`, `co.in`, `co.jp`, `co.nz`, `co.uk`, `co.za`, `com.au`,
+`com.br`, `edu.au`, `gov.au`, `gov.uk`, `net.au`, `org.au`, `org.uk`. Finally, anything that does
+not match the `domain` shape is `null`. So `https://www.example.org/reports/q1.pdf` →
+`example.org`, `https://pubmed.ncbi.nlm.nih.gov/31234567/` → `nih.gov`,
+`https://www.bmj.co.uk/content/1` → `bmj.co.uk`, `https://[::1]/x` → `null`, `https://www./x` →
+`null`. A verifier never needs to compute this; it is listed so the projection is fully specified.
 
 A verifier given a projection instead of a receipt (the JSON the public page serves) runs the
 same checks: check 1 recognises the projection shape, check 2 is `warn` because the body needed
@@ -625,30 +727,38 @@ The best such a run can conclude is that the issuer signed the stated hash — e
 
 ## 12. Verifier checks and exit codes
 
-Input: one JSON document — a receipt or a projection — read from a file or standard input. Any
-JSON whitespace or member order is fine; the verifier re-canonicalizes. Optional inputs: a pinned
-key set (§13; the release build carries one), a root file and a proof (§10).
+Input: one JSON text — a receipt or a projection — read from a file or standard input. Optional
+inputs: a pinned key set (§13; the release build carries one), a root file and a proof (§10).
 
 The checks, in this order, each with a `name`, a `status` of `pass`, `fail`, `warn` or `skip`, and
 a free-form `detail`:
 
 | # | name | pass | fail | warn | skip |
 |---|---|---|---|---|---|
-| 1 | `schema` | parses and matches §4 (receipt) or §11 (projection) exactly | anything else — not JSON, unknown member, wrong shape, non-integer number, wrong literal; `detail` names the first offending path | — | — |
+| 1 | `schema` | see below | see below; `detail` names the first offending path | — | — |
 | 2 | `self_hash` | §2 recomputed over the receipt equals its `self_hash` | it does not | input is a projection: the body is not present, nothing recomputed | schema failed |
-| 3 | `signature` | the `"issuer"` entry's `sig` verifies under `issuer.public_key` over `self_hash` | no `"issuer"` entry; its `key_id` ≠ `issuer.key_id`; or the signature does not verify | — | schema failed |
-| 4 | `key_pinned` | the pinned set has `issuer.key_id` with the same `public_key` | the pinned set has `issuer.key_id` with a *different* `public_key` — someone signed under the issuer's key id with a key of their own | `issuer.key_id` is not in the pinned set — perhaps a key newer than this verifier | no pinned set was supplied; schema failed |
+| 3 | `signature` | exactly one `"issuer"` entry, whose `key_id` equals `issuer.key_id` and whose `sig` verifies under `issuer.public_key` over `self_hash` | no `"issuer"` entry; more than one; its `key_id` differs from `issuer.key_id`; or the signature does not verify | — | schema failed |
+| 4 | `key_pinned` | the pinned set has `issuer.key_id`, and its 32 decoded key bytes equal the 32 decoded bytes of `issuer.public_key` | the pinned set has `issuer.key_id` with *different* bytes — someone signed under the issuer's key id with a key of their own; or the pinned entry itself is not canonical base64 of 32 bytes | `issuer.key_id` is not in the pinned set — perhaps a key newer than this verifier | no pinned set was supplied; schema failed |
 | 5 | `chain_fields` | kind `"exhibitb.receipt"` with integer `seq` ≥ 1 and hex64 `prev_hash` | a chained receipt missing either; an unchained one carrying either | — | kind `"exhibitb.receipt.unchained"` with both `null`; schema failed |
 
-After a `schema` failure checks 2–5 are all reported as `skip`. Every check runs regardless of
-earlier failures otherwise, so the report is complete; `first_failure` is the name of the first
-check whose status is `fail`, or `null`. `ok` is true when no check failed. A `warn` never makes
-`ok` false.
+**Check 1 in full.** In this order: the text is read and refused if it starts with a byte-order
+mark, is not JSON, or carries a duplicate member name anywhere (§1.7, §1.9); the top-level value
+must be an object; then the value is matched against the **receipt schema first** (§4) and, only
+if that fails, against the **projection schema** (§11); if neither matches, `detail` names the
+first path the receipt schema rejected. Finally every string in the matched value must be
+canonicalizable (§1.1): an unpaired surrogate anywhere is a `schema` failure with `detail`
+`unpaired surrogate at <path>`. After a `schema` failure checks 2–5 are all reported as `skip`.
+
+Every other check runs regardless of earlier failures, so the report is complete;
+`first_failure` is the name of the first check whose status is `fail`, or `null`. `ok` is true
+when no check failed. A `warn` never makes `ok` false.
 
 Check 3 verifies against the key *embedded* in the receipt on purpose: it establishes that the
 document is internally consistent, and check 4 then establishes whether that key is the issuer's.
 Reporting them separately is what lets a verifier say "well-formed and signed, but not by a key I
-know" rather than merely "bad".
+know" rather than merely "bad". Keys are compared as bytes in check 4; since every key in this
+format has exactly one canonical spelling (§3), comparing the strings gives the same answer for
+any input that reached check 4.
 
 When a proof and root file are supplied, the verifier additionally reports `root_schema`,
 `root_self_hash`, `root_signature` (under the pinned root key for the file's `key_id`; `fail` when
@@ -672,7 +782,7 @@ contract.
 ## 13. Key pinning and `keys.json`
 
 The issuer publishes every key it has ever signed with at `<issuer url>/keys.json`
-(`cache-control: public, max-age=300`):
+(`cache-control: public, max-age=300`), from its first boot on — the list is never empty:
 
 ```
 {
@@ -694,25 +804,34 @@ The issuer publishes every key it has ever signed with at `<issuer url>/keys.jso
   sealed under a key that was later retired still verifies, and `retired_at` says when the issuer
   stopped using it. A verifier treats both timestamps as informational.
 - **Key ids** in production are `eb-<purpose>-<YYYY-MM>` — `eb-receipt-2026-09`,
-  `eb-root-2026-09` — named for the month the key was made. One key id names one public key for
-  all time; the issuer refuses to publish a second key under an existing id. The receipt schema
-  (§4.1) accepts the wider `^eb-(?:receipt|root)-[a-z0-9-]{1,20}$` so that the fixture keys below
-  fit through it.
+  `eb-root-2026-09` — named for the month the key was made, and `eb-<purpose>-<YYYY-MM>-2`, `-3`,
+  … for a further key made in the same month after the earlier one was retired. One key id names
+  one public key for all time; the issuer never publishes a second key under an existing id and
+  never re-activates a retired one. The production shape is
+
+  ```
+  ^eb-(?:receipt|root)-\d{4}-\d{2}(?:-[2-9]|-[1-9]\d{1,2})?$
+  ```
+
+  while the receipt schema (§4.1, `key-id`) accepts the wider `^eb-(?:receipt|root)-[a-z0-9-]{1,20}$`
+  so that the fixture keys below fit through it.
 - **Purposes.** Receipts are signed with a `receipt` key, root files with a `root` key. A pinned
   set is therefore two lists; check 4 consults the `receipt` list, root verification the `root`
   list.
 - **Pinning.** A release of the verifier compiles in the `{key_id, public_key}` pairs from
-  `keys.json` at build time. Check 4 compares the receipt's embedded key against that set: same
-  key → `pass`; unknown id → `warn` (the receipt may be newer than the verifier: refresh the pinned
-  set, or pass a freshly fetched `keys.json`); known id, different key → `fail`. A verifier may
+  `keys.json` at build time. Check 4 compares the receipt's embedded key against that set as
+  decoded bytes: same bytes → `pass`; unknown id → `warn` (the receipt may be newer than the
+  verifier: refresh the pinned set, or pass a freshly fetched `keys.json`); known id, different
+  bytes → `fail`. A pinned entry that is not canonical base64 of 32 bytes is a `fail` too — it is
+  the verifier's own configuration that is broken, and a broken pin must not pass. A verifier may
   accept a `keys.json` file on the command line in place of, or in addition to, its compiled set.
 - **Fixture keys.** `spec/vectors/test-key.json` is `{"key_id": "eb-receipt-test",
   "private_pkcs8_b64", "public_key"}` — a committed Ed25519 key whose private half is public by
   design, so the vectors are reproducible. Its public key is
   `+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ=`. The root vector signs with the same key pair
-  under the id `eb-root-test`. The issuer refuses to sign anything real with an id outside
-  `^eb-(?:receipt|root)-\d{4}-\d{2}$`, and a release verifier must not carry either fixture id in
-  its pinned set; pin them only when running the vectors.
+  under the id `eb-root-test`. The issuer refuses to sign anything real with an id outside the
+  production shape above, and a release verifier must not carry either fixture id in its pinned
+  set; pin them only when running the vectors.
 - **Private keys** never leave the issuer. Public keys are the only thing a verifier ever holds.
 
 ## 14. Vectors
@@ -720,16 +839,19 @@ The issuer publishes every key it has ever signed with at `<issuer url>/keys.jso
 All files are under `spec/vectors/`, generated by one deterministic script from the reference
 implementation, so re-running it produces byte-identical files. They are pretty-printed JSON; the
 canonical bytes a case is about are carried as string values inside them, never as the file's own
-layout. Read each file with an ordinary JSON parser.
+layout. Read each file with an ordinary JSON parser — except where a case is *about* the parser,
+which the descriptions below call out.
 
 ### `canonical.json`
 
 An array of `{"name", "input", "canonical"}`. For each case, canonicalize `input` (§1) and compare
-the UTF-8 bytes with `canonical` (a string; encode it as UTF-8). Fifteen cases: empty object and
-array; literals; key order for ASCII, prefixes, non-ASCII and the surrogate-pair edge; every
-escape; control characters; U+007F and U+0080 literal; non-ASCII pass-through; integers including
-0, negatives and ±(2^53 − 1); array order; nested sorting; a receipt-shaped fragment. Also check
-that parsing `canonical` and canonicalizing again returns the same bytes.
+the UTF-8 bytes with `canonical` (a string; encode it as UTF-8). Seventeen cases: empty object and
+array; literals; key order for ASCII, prefixes, non-ASCII, the surrogate-pair edge and
+digit-string keys (`"1"`, `"10"`, `"9"`); every escape; control characters; U+007F and U+0080
+literal; non-ASCII pass-through; a literal U+00A0 (emitted as itself, like any unit at or above
+U+0020); integers including 0, negatives and ±(2^53 − 1); array order; nested sorting; a
+receipt-shaped fragment. Also check that parsing `canonical` and canonicalizing again returns the
+same bytes.
 
 ### `selfhash.json`
 
@@ -755,20 +877,31 @@ each audit path is what §10's `PATH` produces, and that each proof verifies aga
   "canonical_sha256": sha256 of its full canonical bytes, self_hash and signatures included,
   "projection":       its public projection (§11),
   "unchained":        {"receipt", "self_hash"} — the same body issued unchained,
-  "tampered":         [{"name", "first_failure", "receipt"}, ×3]
+  "tampered":         [{"name", "first_failure", "receipt"}, ×5]
 }
 ```
 
 With `key` as the pinned set: `receipt` must pass all five checks (exit 0);
-`self_hash(receipt)` must equal `self_hash`, which is
-`1f4a2ef76a73b189d25ef661e863c4bfb9d5bb5bcdc94ceee8b19d97af1d9ed5`; `sha256(canonical(receipt))`
-must equal `canonical_sha256` (`9835aeb30839af44ebe27ca4f103a175c928b623ce2a61c4b7d1bf7f518ac269`)
-— the integrity check for a downloaded file, distinct from the hash that is signed. `projection`
-must pass with `self_hash` `warn` and everything else `pass` (exit 2). `unchained.receipt` must
-pass with `chain_fields` `skip` and hash to `unchained.self_hash`. Each `tampered[i].receipt` must
-have `ok` false and `first_failure` equal to `tampered[i].first_failure`: an edited `overlap_bp`
-→ `self_hash`; one flipped signature byte → `signature`; an unknown `kind` → `schema` (with checks
-2–5 `skip`).
+`self_hash(receipt)` must equal `self_hash`; `sha256(canonical(receipt))` must equal
+`canonical_sha256` — the integrity check for a downloaded file, distinct from the hash that is
+signed. `projection` must pass with `self_hash` `warn` and everything else `pass` (exit 2).
+`unchained.receipt` must pass with `chain_fields` `skip` and hash to `unchained.self_hash`. Each
+`tampered[i].receipt` must have `ok` false and `first_failure` equal to
+`tampered[i].first_failure`, with checks 2–5 `skip` whenever that is `schema`:
+
+1. an edited `overlap_bp` → `self_hash`;
+2. one flipped signature byte → `signature`;
+3. an unknown `kind` → `schema`;
+4. `issuer.url` carrying a lone high surrogate, present in the file as the six characters `\ud83d`
+   with no low surrogate after it → `schema` (§1.1). This is the case that catches a decoder which
+   substitutes U+FFFD: after such a substitution the string is a valid URL and every check passes,
+   which is the wrong answer;
+5. `claims[0].locator.url` carrying a literal U+00A0 (the character itself, not an escape) →
+   `schema`, because U+00A0 is whitespace under the `http-url` shape (§0's `\s`). This is the case
+   that catches a regular-expression engine whose `\s` is ASCII only.
+
+The exact `self_hash` and `canonical_sha256` values are in the file; the reference implementation
+reproduces `receipt` byte for byte from its own fixtures, and so must any other.
 
 ### `root.json`
 

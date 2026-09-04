@@ -1,7 +1,8 @@
 # Pinned keys
 
 `exhibitb.json` is compiled into every `recheck` build (`receipt.Pinned()`). It has the shape of
-the issuer's `GET /keys.json`:
+the issuer's `GET /keys.json` and is refreshed from
+<https://github.com/20012001amiramir/exhibitb-roots/blob/master/keys.json> on each release:
 
 ```json
 {
@@ -11,17 +12,17 @@ the issuer's `GET /keys.json`:
       "alg": "ed25519",
       "purpose": "receipt",
       "public_key": "<base64 of the 32 raw public-key bytes>",
-      "created_at": "2026-09-01T00:00:00Z",
+      "created_at": "2026-09-04T22:23:18Z",
       "retired_at": null
     }
   ]
 }
 ```
 
-TODO (deploy step): fetch the production `keys.json` from the issuer, review the key ids
-(`eb-receipt-YYYY-MM`, `eb-root-YYYY-MM`), write it here, and cut a release. Until then the list
-is empty and `key_pinned` reports `skip` — a build without pinned keys can say a receipt is
-internally consistent, not who signed it.
+Retired keys stay listed forever, so a receipt sealed under an old key still verifies. A receipt
+signed under a key id this file does not know reports `key_pinned: warn` — refresh the build, or
+pass a freshly fetched `keys.json` with `--keys`.
 
 Never pin `eb-receipt-test` or `eb-root-test` (the vector fixture key, whose private half is
-public by design).
+public by design). The tests pin it themselves; on the command line, pass
+`--keys spec/vectors/test-key.json` when verifying a vector.

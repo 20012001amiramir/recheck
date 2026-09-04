@@ -1,3 +1,20 @@
 {
-  "keys": []
+  "keys": [
+    {
+      "key_id": "eb-receipt-2026-09",
+      "alg": "ed25519",
+      "purpose": "receipt",
+      "public_key": "C9ANxVBj3NSUVEGOJ6FFrmVSlTrqCPjiDmEIoEmB8XI=",
+      "created_at": "2026-09-04T22:23:18Z",
+      "retired_at": null
+    },
+    {
+      "key_id": "eb-root-2026-09",
+      "alg": "ed25519",
+      "purpose": "root",
+      "public_key": "V2Pclq2fz2OA2f4Drs4O4C6Iv2eenqG2dSdxOnIGUqg=",
+      "created_at": "2026-09-04T22:23:18Z",
+      "retired_at": null
+    }
+  ]
 }
