@@ -293,8 +293,11 @@ token(N)       ^[a-z][a-z0-9_]*$             length ≤ N
 receipt-id     ^eb_[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}$
 doi-value      ^10\.\d{4,9}\/\S+$            length ≤ 200
 pmid-value     ^\d{1,9}$
-case-cite      ^(?:\d{1,4}|\[\d{4}\])\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}\s\d{1,6}$
-                                              length ≤ 30
+case-cite      one pattern, written here across four lines (it contains no literal whitespace):
+               ^(?:\d{1,4}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}
+                 |\[\d{4}\]\s\d{1,3}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7})?
+                 |\[\d{4}\]\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}
+               )\s\d{1,6}$                                                          length ≤ 30
 retriever-id   ^[A-Za-z0-9_-]{1,16}$
 vantage        ^[a-z][a-z0-9_-]{0,23}$
 archive-job    ^[A-Za-z0-9_.:-]{1,80}$
@@ -311,13 +314,19 @@ Notes on the shapes:
 - `key-id` is the shape a receipt may name; production key ids are narrower (§13).
 - `token(N)` is a lowercase machine word, never a sentence.
 - `receipt-id` is `eb_` plus 16 characters from a 56-symbol alphabet with no `0 O 1 l I`.
-- `case-cite` is a reporter or neutral citation: a volume (or a bracketed year), one to three
-  reporter tokens each starting with a capital letter or a digit, and a page — at most five
-  whitespace-separated tokens and 30 characters, with exactly one whitespace character between
-  tokens (the engine collapses runs before sealing). `410 U.S. 113`, `123 S. Ct. 456`,
-  `123 F. Supp. 2d 456`, `123 F.3d 456`, `12 Cal. App. 4th 345`, `12 N.Y.S.2d 34`, `[2019] EWHC 12`,
-  `[2020] UKSC 1`, `2019 SCC 5` all fit; a sentence that happens to start with a year and end with
-  a number does not.
+- `case-cite` is a reporter or neutral citation of at most five whitespace-separated tokens and
+  30 characters. It opens with a volume of one to four digits (`410 U.S. 113`, `2019 SCC 5`), or a
+  bracketed four-digit year (`[2019] EWHC 12`), or a bracketed year followed by a volume of one to
+  three digits (`[2010] 1 AC 123`, `[2019] 2 WLR 456`, `[2020] 1 All ER 123`). Then come one to
+  three reporter tokens — the first starts with a capital letter and continues with letters,
+  digits, `.`, `&`, `'` or `-` up to 13 characters in all; each further one starts with a capital
+  letter or a digit and continues with letters, digits or `.` up to 8 characters in all — except
+  that only two reporter tokens may follow a year-plus-volume, which is what keeps every shape
+  inside five tokens. Then a page of one to six digits. Exactly one whitespace character separates
+  tokens (the engine collapses runs before sealing). `123 S. Ct. 456`, `123 F. Supp. 2d 456`,
+  `123 F.3d 456`, `12 Cal. App. 4th 345`, `12 N.Y.S.2d 34`, `[2020] UKSC 1`, `[2015] 2 Lloyd's Rep 123`
+  all fit; a sentence that happens to start with a year and end with a number does not, and
+  neither does a six-token citation such as `[2020] 1 Cr App R 123`.
 
 The non-string primitives:
 

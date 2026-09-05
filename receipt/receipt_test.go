@@ -456,6 +456,8 @@ func TestSchemaStrictness(t *testing.T) {
 		{"case citation", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "410 U.S. 113"`}}},
 		{"case citation, three reporter tokens", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "123 F. Supp. 2d 456"`}}},
 		{"neutral citation", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "[2019] EWHC 12"`}}},
+		{"law report citation, a volume after the year", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "[2010] 1 AC 123"`}}},
+		{"law report citation, two reporter tokens", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "[2020] 1 All ER 123"`}}},
 		{"pmid", [][]string{{`"type": "doi"`, `"type": "pmid"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "31234567"`}}},
 		{"retriever unavailable", [][]string{{`"status": 403,`, `"status": "unavailable",`}}},
 		{"number spelled with an exponent", [][]string{{`"bytes": 812004,`, `"bytes": 8.12004e5,`}}},

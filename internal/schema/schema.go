@@ -30,6 +30,21 @@ func (e *Error) Error() string { return e.Path + ": " + e.Msg }
 // JSWhitespace is the ECMAScript \s set as a Go character-class body; RE2's \s is ASCII only.
 const JSWhitespace = `\t\n\x0B\f\r \x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}`
 
+// The case-cite pattern of §4.1, assembled from its three alternatives — a volume, a bracketed
+// year, or a bracketed year and a volume of up to three digits — each followed by one to three
+// reporter tokens (only two after a year-plus-volume, which keeps every shape inside five tokens)
+// and a page, with exactly one whitespace character between tokens.
+const (
+	caseWS       = `[` + JSWhitespace + `]`
+	caseReporter = `[A-Z][A-Za-z0-9.&'-]{0,12}`
+	caseMore     = caseWS + `[A-Z0-9][A-Za-z0-9.]{0,7}`
+	casePattern  = `\A(?:` +
+		`[0-9]{1,4}` + caseWS + caseReporter + `(?:` + caseMore + `){0,2}` +
+		`|\[[0-9]{4}\]` + caseWS + `[0-9]{1,3}` + caseWS + caseReporter + `(?:` + caseMore + `)?` +
+		`|\[[0-9]{4}\]` + caseWS + caseReporter + `(?:` + caseMore + `){0,2}` +
+		`)` + caseWS + `[0-9]{1,6}\z`
+)
+
 var (
 	reTimestamp   = regexp.MustCompile(`\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\z`)
 	reDate        = regexp.MustCompile(`\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z`)
@@ -44,7 +59,7 @@ var (
 	reReceiptID   = regexp.MustCompile(`\Aeb_[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}\z`)
 	reDOI         = regexp.MustCompile(`\A10\.[0-9]{4,9}/[^` + JSWhitespace + `]+\z`)
 	rePMID        = regexp.MustCompile(`\A[0-9]{1,9}\z`)
-	reCase        = regexp.MustCompile(`\A(?:[0-9]{1,4}|\[[0-9]{4}\])[` + JSWhitespace + `][A-Z][A-Za-z0-9.&'-]{0,12}(?:[` + JSWhitespace + `][A-Z0-9][A-Za-z0-9.]{0,7}){0,2}[` + JSWhitespace + `][0-9]{1,6}\z`)
+	reCase        = regexp.MustCompile(casePattern)
 	reRetrieverID = regexp.MustCompile(`\A[A-Za-z0-9_-]{1,16}\z`)
 	reVantage     = regexp.MustCompile(`\A[a-z][a-z0-9_-]{0,23}\z`)
 	reArchiveJob  = regexp.MustCompile(`\A[A-Za-z0-9_.:-]{1,80}\z`)
