@@ -129,7 +129,7 @@ func VerifyParsed(r *Receipt, raw *canonical.Value, keys *KeySet) Result {
 
 	switch pinned, ok := keys.Lookup(PurposeReceipt, r.Issuer.KeyID); {
 	case keys.Len() == 0:
-		add("key_pinned", Skip, "no pinned keys: this build carries none and no --keys file was given — verified against the key inside the receipt only")
+		add("key_pinned", Skip, "the key set handed to this check is empty — verified against the key inside the receipt only")
 	case !ok:
 		add("key_pinned", Warn, "issuer key not pinned — verified against the key inside the receipt only ("+r.Issuer.KeyID+")")
 	case pinned.Broken:
