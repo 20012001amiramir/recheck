@@ -142,7 +142,7 @@ adds the re-fetch of every cited URL that has a recorded content hash.
 | 5 | `chain_fields` | chained: `seq` ≥ 1 and hex `prev_hash` | chained without them, unchained with them | — | unchained receipt: not anchored to the public chain |
 | 6 | `root_schema`, `root_self_hash`, `root_signature` | the root file parses, hashes and verifies under the pinned root key | it does not (an unpinned root key is a failure: the file carries no key) | — | with `--root` only |
 | 7 | `inclusion` | the proof is for this receipt and rebuilds the root file's root | it is not, or does not | proof `pending`; `--root` or `--proof` missing | proof `unchained`; an earlier failure |
-| 8 | `refetch` | every fetched source still carries the recorded bytes | — | a source changed or was unreachable | no URL with a content hash; a projection |
+| 8 | `refetch` | every fetched source still carries the recorded bytes | — | a source changed, or was unreachable — no answer, or an HTTP status ≥ 400 | no URL with a content hash; a projection |
 
 Exit codes:
 
@@ -155,7 +155,11 @@ Exit codes:
 
 A file that reads but is not a receipt is exit 1 with `first_failure.check = "schema"`, not 64.
 A changed source under `--refetch` is a warning, not a failure: the receipt attests the bytes at
-issue time, and the source having moved on is information, not a contradiction.
+issue time, and the source having moved on is information, not a contradiction. So is a source
+that could not be fetched at all — and an HTTP status of 400 or worse counts as that: a 404, a
+403 behind a paywall or a 500 is reported `unreachable`, with nothing hashed and nothing compared.
+`--refetch` reads what a source serves *now*; it cannot tell a source that was never there from
+one that has since been taken down, and neither answer touches the checks over the receipt itself.
 
 `--json` prints one object instead:
 
@@ -171,7 +175,8 @@ issue time, and the source having moved on is information, not a contradiction.
 ```
 
 `first_failure` is `{check, detail}` for the first failing check; `refetch` entries have a
-`status` of `match`, `changed` or `unreachable` and a `detail` when there is something to say;
+`status` of `match`, `changed` or `unreachable` (no answer, or an HTTP status of 400 or worse)
+and a `detail` when there is something to say;
 `receipt` is filled in on a best-effort basis even when the schema fails. A run that could not
 start (exit 64) answers `{ok: false, exit: 64, error: "…"}` with empty lists, so a caller never has
 to parse stderr.

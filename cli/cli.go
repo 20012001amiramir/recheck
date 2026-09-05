@@ -49,7 +49,9 @@ recheck version
 const usageNotes = `
 verify reads a file (or - for standard input) and never touches the network. Only a receipt id
 in place of a file fetches that receipt's public projection from the issuer, and --offline
-refuses even that. --refetch downloads each cited URL from this machine, never via the issuer.
+refuses even that. --refetch downloads each cited URL from this machine, never via the issuer; a
+source that does not answer, or answers http 400 or worse, is reported unreachable, and a source
+that changed or is unreachable is a warning, never a failure.
 Exit codes: 0 every check passed, 1 a check failed, 2 nothing failed but something could not be
 established (a warning), 64 usage. Add --json for machine output, --ascii for plain markers.
 `
