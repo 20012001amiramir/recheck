@@ -67,6 +67,9 @@ func KeyIDShape(s string) bool { return schema.KeyID(s) == "" }
 // Hex64Shape reports whether s is hex64.
 func Hex64Shape(s string) bool { return schema.Hex64(s) == "" }
 
+// ReceiptIDShape reports whether s is a receipt id (eb_ plus 16 characters).
+func ReceiptIDShape(s string) bool { return schema.ReceiptID(s) == "" }
+
 func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 	v := &schema.Validator{}
 	r := &Receipt{Projected: projected}
