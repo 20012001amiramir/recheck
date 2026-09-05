@@ -148,6 +148,14 @@ func TestVerifyUsage(t *testing.T) {
 	if r := exec(t, "", "help"); r.code != 0 || !strings.HasPrefix(r.stdout, cli.Usage) {
 		t.Errorf("help: %d %s", r.code, r.stdout)
 	}
+	if r := exec(t, "", "verify", "--help"); r.code != 0 || !strings.HasPrefix(r.stdout, cli.Usage) {
+		t.Errorf("verify --help: %d %s", r.code, r.stdout)
+	}
+	// With --json a run that could not start still answers in JSON.
+	r = exec(t, "", "verify", filepath.Join(f["dir"], "nope.json"), "--json")
+	if r.code != cli.ExitUsage || !strings.Contains(r.stdout, `"exit": 64`) || !strings.Contains(r.stdout, `"error": "`) {
+		t.Errorf("json usage error: %d %s", r.code, r.stdout)
+	}
 	if r := exec(t, "", "version"); r.code != 0 || !strings.HasPrefix(r.stdout, "recheck ") {
 		t.Errorf("version: %d %s", r.code, r.stdout)
 	}

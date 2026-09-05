@@ -65,6 +65,7 @@ type env struct {
 // Main runs the command line and returns the exit code.
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	e := &env{stdin: stdin, stdout: stdout, stderr: stderr}
+	refetch.UserAgent = "recheck/" + Version + " (+https://github.com/20012001amiramir/recheck)"
 	if len(args) == 0 {
 		fmt.Fprint(stderr, Usage)
 		return ExitUsage
@@ -97,6 +98,10 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func (e *env) usage(err error) int {
+	if errors.Is(err, errHelp) {
+		fmt.Fprint(e.stdout, Usage+usageNotes)
+		return ExitOK
+	}
 	fmt.Fprintln(e.stderr, "recheck: "+err.Error())
 	fmt.Fprint(e.stderr, Usage)
 	return ExitUsage
@@ -188,9 +193,19 @@ func (e *env) verify(args []string) int {
 	if p.bools["offline"] && p.bools["refetch"] {
 		return e.usage(errors.New("--offline and --refetch contradict each other"))
 	}
+	// With --json even a run that could not start answers in JSON, so a caller never has to
+	// parse stderr.
+	fail := func(code int, err error) int {
+		if p.bools["json"] {
+			e.stdout.Write(verify.Report{Exit: code, Error: err.Error()}.JSON())
+			fmt.Fprintln(e.stdout)
+			return code
+		}
+		return e.fail(code, err)
+	}
 	keys, err := loadKeys(p.values["keys"])
 	if err != nil {
-		return e.fail(ExitUsage, err)
+		return fail(ExitUsage, err)
 	}
 
 	target := p.positional[0]
@@ -198,29 +213,28 @@ func (e *env) verify(args []string) int {
 	switch {
 	case target != "-" && receipt.ReceiptIDShape(target) && !fileExists(target):
 		if p.bools["offline"] {
-			return e.fail(ExitUsage, fmt.Errorf("--offline: %s is a receipt id, and fetching it means contacting the issuer", target))
+			return fail(ExitUsage, fmt.Errorf("--offline: %s is a receipt id, and fetching it means contacting the issuer", target))
 		}
 		fmt.Fprintln(e.stderr, "fetching from issuer (online)")
-		input, err = fetchFromIssuer(target)
-		if err != nil {
-			return e.fail(ExitUsage, err)
+		var code int
+		if input, code, err = fetchFromIssuer(target); err != nil {
+			return fail(code, err)
 		}
 	default:
-		input, err = readInput(e, target)
-		if err != nil {
-			return e.fail(ExitUsage, err)
+		if input, err = readInput(e, target); err != nil {
+			return fail(ExitUsage, err)
 		}
 	}
 
 	opts := verify.Options{Keys: keys}
 	if path := p.values["root"]; path != "" {
 		if opts.Root, err = os.ReadFile(path); err != nil {
-			return e.fail(ExitUsage, err)
+			return fail(ExitUsage, err)
 		}
 	}
 	if path := p.values["proof"]; path != "" {
 		if opts.Proof, err = os.ReadFile(path); err != nil {
-			return e.fail(ExitUsage, err)
+			return fail(ExitUsage, err)
 		}
 	}
 	if p.bools["refetch"] {
@@ -266,31 +280,33 @@ func refetchHash(url string) (string, error) {
 	return r.SHA256, nil
 }
 
-// fetchFromIssuer downloads a receipt's public projection: the one online path.
-func fetchFromIssuer(id string) ([]byte, error) {
+// fetchFromIssuer downloads a receipt's public projection: the one online path. With an error it
+// returns the exit code for it — 64 when the issuer says it has no such receipt, since the id
+// was the caller's; 2 for no answer or a broken one, since then no check could run.
+func fetchFromIssuer(id string) ([]byte, int, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequest(http.MethodGet, IssuerURL+"/api/receipt/"+id, nil)
 	if err != nil {
-		return nil, err
+		return nil, ExitUsage, err
 	}
-	req.Header.Set("User-Agent", "recheck/"+Version+" (+https://github.com/20012001amiramir/recheck)")
+	req.Header.Set("User-Agent", refetch.UserAgent)
 	req.Header.Set("Accept", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetching %s from the issuer: %w", id, err)
+		return nil, ExitIncomplete, fmt.Errorf("fetching %s from the issuer: %w", id, err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
-		return nil, err
+		return nil, ExitIncomplete, fmt.Errorf("reading %s from the issuer: %w", id, err)
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
-		return body, nil
+		return body, ExitOK, nil
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("the issuer has no receipt %s", id)
+		return nil, ExitUsage, fmt.Errorf("the issuer has no receipt %s", id)
 	default:
-		return nil, fmt.Errorf("the issuer answered http %d for %s", resp.StatusCode, id)
+		return nil, ExitIncomplete, fmt.Errorf("the issuer answered http %d for %s", resp.StatusCode, id)
 	}
 }
 

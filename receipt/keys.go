@@ -171,8 +171,8 @@ var (
 	pinnedErr  error
 )
 
-// Pinned is the key set compiled into this build from keys/exhibitb.json. It is empty until the
-// deploy step fills the file; an empty set makes key_pinned skip, never pass.
+// Pinned is the key set compiled into this build from keys/exhibitb.json: the production keys,
+// never the fixture key. An empty file would make key_pinned skip, never pass.
 func Pinned() (*KeySet, error) {
 	pinnedOnce.Do(func() {
 		pinnedSet, pinnedErr = ParseKeySet(keys.Pinned)
