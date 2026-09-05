@@ -10,14 +10,14 @@
 #   ./build.sh smoke     the native binary and the npm wrapper against the vectors (needs node)
 #   ./build.sh all       test, build, wasm, smoke
 #
-# GO_IMAGE and TINYGO_IMAGE override the toolchain images (golang:1.23-alpine, tinygo/tinygo:0.38.0);
+# GO_IMAGE and TINYGO_IMAGE override the toolchain images (golang:1.23.12-alpine, tinygo/tinygo:0.38.0);
 # PAGE_TOOLCHAIN=go builds the page's module with standard Go instead of TinyGo. VERSION overrides
 # the version compiled in (default: the tag on HEAD, else npm/package.json's version plus the
 # short commit id).
 set -eu
 cd "$(dirname "$0")"
 
-GO_IMAGE="${GO_IMAGE:-golang:1.23-alpine}"
+GO_IMAGE="${GO_IMAGE:-golang:1.23.12-alpine}"
 TINYGO_IMAGE="${TINYGO_IMAGE:-tinygo/tinygo:0.38.0}"
 # The page's module is built with TinyGo (a fifth of the size); PAGE_TOOLCHAIN=go uses standard Go.
 PAGE_TOOLCHAIN="${PAGE_TOOLCHAIN:-tinygo}"

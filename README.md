@@ -343,7 +343,7 @@ fmt.Println(rep.Exit, rep.FirstFailure)           // rep.JSON() is the --json ou
 ## Building and testing
 
 No toolchain is needed locally: `build.sh` runs every command in a container —
-`golang:1.23-alpine` for Go, `tinygo/tinygo:0.38.0` for the page's module (Docker 27 was used).
+`golang:1.23.12-alpine` for Go, `tinygo/tinygo:0.38.0` for the page's module (Docker 27 was used).
 With `GO_LOCAL=1` the same script uses the `go` and `tinygo` on your PATH, which is how CI runs
 it.
 
