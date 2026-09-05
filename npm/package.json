@@ -1,0 +1,37 @@
+{
+  "name": "exhibitb",
+  "version": "0.1.0",
+  "description": "Verify an EXHIBIT B receipt offline: signature, self-hash, chain fields and inclusion in a published root, without contacting the issuer.",
+  "license": "MIT",
+  "homepage": "https://github.com/20012001amiramir/recheck#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/20012001amiramir/recheck.git"
+  },
+  "bugs": {
+    "url": "https://github.com/20012001amiramir/recheck/issues"
+  },
+  "bin": {
+    "exhibitb": "bin/exhibitb.js",
+    "recheck": "bin/exhibitb.js"
+  },
+  "files": [
+    "bin",
+    "wasm"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node bin/exhibitb.js version"
+  },
+  "keywords": [
+    "exhibitb",
+    "receipt",
+    "verify",
+    "ed25519",
+    "merkle",
+    "offline",
+    "wasm"
+  ]
+}

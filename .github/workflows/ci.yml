@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: standard library only
+        run: test "$(go list -m all | wc -l)" -eq 1
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: vet and test
+        run: GO_LOCAL=1 ./build.sh test
+      - name: native binary
+        run: GO_LOCAL=1 ./build.sh build
+      - name: wasm and npm package
+        run: GO_LOCAL=1 ./build.sh wasm
+      - name: smoke (binary, npm wrapper, browser API)
+        run: ./build.sh smoke
+      - name: release matrix
+        run: GO_LOCAL=1 ./build.sh release

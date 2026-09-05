@@ -3,6 +3,7 @@ dist/
 wasm/recheck.wasm
 wasm/wasm_exec.js
 npm/wasm/
+npm/LICENSE
 npm/node_modules/
 spec/vectors/receipt-valid.json
 *.exe

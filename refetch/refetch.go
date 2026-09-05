@@ -94,6 +94,9 @@ func Fetch(ctx context.Context, client *http.Client, rawURL string) (Result, err
 	}
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Accept", "*/*")
+	for k, v := range transportHeaders {
+		req.Header.Set(k, v)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return res, err
