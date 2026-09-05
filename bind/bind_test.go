@@ -178,6 +178,16 @@ func TestBind(t *testing.T) {
 	if err != nil || !hmacEqual(b64.BindingKey, key) {
 		t.Errorf("base64 key: %v", err)
 	}
+	// A lone surrogate in a claim text is read rather than refused: the bundle is not hashed, and
+	// the engine's JSON.stringify emits one for an unpaired code unit. The claim then simply does
+	// not re-derive its HMAC, which is a verdict on that claim, not on the file.
+	surrogate, err := bind.ParseBundle([]byte(strings.Replace(string(bundleJSON), "grew 12%", `grew 12% \ud800`, 1)))
+	if err != nil {
+		t.Errorf("lone surrogate refused: %v", err)
+	} else if checks := bind.Check(rec, surrogate, document); checks[2].Status != receipt.Fail {
+		t.Errorf("claim with a surrogate in it: %v", checks[2])
+	}
+
 	for _, bad := range []string{`{}`, `{"binding_key":"xx","claims":[]}`, `{"binding_key":"` + hex.EncodeToString(key) + `"}`, `{"binding_key":"` + hex.EncodeToString(key) + `","claims":[{"n":"1","claim_text":"x"}]}`, `[]`, `nope`} {
 		if _, err := bind.ParseBundle([]byte(bad)); err == nil {
 			t.Errorf("accepted %s", bad)

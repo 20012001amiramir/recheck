@@ -43,8 +43,14 @@ type Claim struct {
 
 // ParseBundle reads binding.json. binding_key may be hex or base64; members the check does not
 // need are ignored.
+//
+// The bundle is read leniently. Nothing in it is hashed or canonicalized — the hashes are the
+// receipt's, and the bundle only supplies the text behind them — so the strict parser's refusal
+// of a lone surrogate would throw the whole file out over one character of one claim, which the
+// engine's JSON.stringify is entitled to emit. A claim whose text does not re-derive its HMAC is
+// reported as that claim failing, which is the answer the reader came for either way.
 func ParseBundle(data []byte) (*Bundle, error) {
-	raw, err := canonical.Parse(data)
+	raw, err := canonical.ParseLenient(data)
 	if err != nil {
 		return nil, fmt.Errorf("binding.json: %w", err)
 	}
