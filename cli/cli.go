@@ -19,13 +19,11 @@ import (
 
 	"github.com/20012001amiramir/recheck/bind"
 	"github.com/20012001amiramir/recheck/canonical"
+	"github.com/20012001amiramir/recheck/internal/build"
 	"github.com/20012001amiramir/recheck/receipt"
 	"github.com/20012001amiramir/recheck/refetch"
 	"github.com/20012001amiramir/recheck/verify"
 )
-
-// Version is set by the build (-ldflags "-X …/cli.Version=v1.2.3").
-var Version = "dev"
 
 // IssuerURL is the only address this program ever contacts, and only for `verify <id>`.
 const IssuerURL = "https://exhibitb.autofract.com"
@@ -65,7 +63,7 @@ type env struct {
 // Main runs the command line and returns the exit code.
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	e := &env{stdin: stdin, stdout: stdout, stderr: stderr}
-	refetch.UserAgent = "recheck/" + Version + " (+https://github.com/20012001amiramir/recheck)"
+	refetch.UserAgent = "recheck/" + build.Version + " (+https://github.com/20012001amiramir/recheck)"
 	if len(args) == 0 {
 		fmt.Fprint(stderr, Usage)
 		return ExitUsage
@@ -85,7 +83,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "countersign":
 		return e.countersign(rest)
 	case "version", "--version", "-v":
-		fmt.Fprintln(stdout, "recheck "+Version)
+		fmt.Fprintln(stdout, "recheck "+build.Version)
 		return ExitOK
 	case "help", "--help", "-h":
 		fmt.Fprint(stdout, Usage+usageNotes)

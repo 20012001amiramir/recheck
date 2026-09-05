@@ -19,7 +19,7 @@ cd "$(dirname "$0")"
 GO_IMAGE="${GO_IMAGE:-golang:1.23-alpine}"
 pkg_version() { sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' npm/package.json | head -n 1; }
 VERSION="${VERSION:-$(git describe --tags --exact-match 2>/dev/null || echo "$(pkg_version)+$(git rev-parse --short HEAD 2>/dev/null || echo dev)")}"
-LDFLAGS="-s -w -X github.com/20012001amiramir/recheck/cli.Version=$VERSION"
+LDFLAGS="-s -w -X github.com/20012001amiramir/recheck/internal/build.Version=$VERSION"
 
 # git-bash on Windows rewrites /src into a Windows path unless told not to.
 export MSYS_NO_PATHCONV=1
@@ -57,6 +57,8 @@ build_one() { # os arch suffix
 
 cmd_test() {
   gorun -- go vet ./...
+  gorun GOOS=js GOARCH=wasm -- go vet ./cmd/wasm
+  gorun GOOS=js GOARCH=wasm -- go vet -tags nocli ./cmd/wasm
   gorun -- go test ./...
 }
 
@@ -78,14 +80,16 @@ cmd_release() {
 cmd_wasm() {
   mkdir -p wasm npm/wasm
   echo "building wasm (standard Go, GOOS=js GOARCH=wasm)"
-  gorun GOOS=js GOARCH=wasm -- go build -trimpath -ldflags "$LDFLAGS" -o wasm/recheck.wasm ./cmd/wasm
+  # The page's module has no command line in it; the npm package's does.
+  gorun GOOS=js GOARCH=wasm -- go build -trimpath -tags nocli -ldflags "$LDFLAGS" -o wasm/recheck.wasm ./cmd/wasm
+  gorun GOOS=js GOARCH=wasm -- go build -trimpath -ldflags "$LDFLAGS" -o npm/wasm/recheck.wasm ./cmd/wasm
   # The runtime shim moved from misc/wasm to lib/wasm in Go 1.24.
   gorun -- sh -c 'cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm/ 2>/dev/null || cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" wasm/'
-  cp wasm/recheck.wasm wasm/wasm_exec.js npm/wasm/
+  cp wasm/wasm_exec.js npm/wasm/
   cp LICENSE npm/LICENSE
   # The valid receipt from the vectors as a plain file, for the smoke test and for readers.
   gorun -- go run ./cmd/recheck vectors-extract spec/vectors/receipt.json receipt > spec/vectors/receipt-valid.json
-  ls -l wasm/recheck.wasm
+  ls -l wasm/recheck.wasm npm/wasm/recheck.wasm
 }
 
 # expect_exit N command...: runs the command and insists on exit status N.

@@ -1,10 +1,11 @@
 //go:build js && wasm
 
-// Command wasm is recheck compiled to WebAssembly: one module for two hosts. When the host names
-// the program in argv — the `exhibitb` npm wrapper sets argv to ["exhibitb", …] — it is the
-// command line of cmd/recheck. When argv is the Go runtime's default (["js"], what a browser page
-// gets) it installs window.recheck = {version, verify, tamper} and stays resident; verify there
-// runs entirely in memory and makes no request of any kind.
+// Command wasm is recheck compiled to WebAssembly. It installs window.recheck = {version, verify,
+// tamper} and stays resident; verify there runs entirely in memory and makes no request of any
+// kind. Built without the nocli tag it also carries the command line of cmd/recheck, which runs
+// instead when the host names the program in argv — the `exhibitb` npm wrapper sets argv to
+// ["exhibitb", …], while a page leaves the Go runtime's default. Built with -tags nocli it is the
+// page's module alone, without net/http and the rest of the command line, at a third of the size.
 package main
 
 import (
@@ -12,18 +13,18 @@ import (
 	"os"
 	"syscall/js"
 
-	"github.com/20012001amiramir/recheck/cli"
+	"github.com/20012001amiramir/recheck/internal/build"
 	"github.com/20012001amiramir/recheck/receipt"
 	"github.com/20012001amiramir/recheck/tamper"
 	"github.com/20012001amiramir/recheck/verify"
 )
 
 func main() {
-	if len(os.Args) > 0 && os.Args[0] != "js" {
-		os.Exit(cli.Main(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	if code, ran := runCLI(); ran {
+		os.Exit(code)
 	}
 	api := js.ValueOf(map[string]any{
-		"version": cli.Version,
+		"version": build.Version,
 		"verify":  js.FuncOf(verifyJS),
 		"tamper":  js.FuncOf(tamperJS),
 	})

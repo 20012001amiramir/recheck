@@ -24,7 +24,9 @@ require(path.join(__dirname, "..", "wasm", "wasm_exec.js"));
 
 const go = new Go();
 go.argv = ["exhibitb", ...process.argv.slice(2)];
-go.env = Object.assign({ TMPDIR: os.tmpdir() }, process.env);
+// The Go runtime gives argv and the environment 4 KB together, and the verifier reads no
+// variable, so the environment is not forwarded.
+go.env = { TMPDIR: os.tmpdir() };
 go.exit = (code) => process.exit(code);
 
 const wasmPath = path.join(__dirname, "..", "wasm", "recheck.wasm");
