@@ -24,7 +24,7 @@ func main() {
 		os.Exit(code)
 	}
 	api := js.ValueOf(map[string]any{
-		"version": build.Version,
+		"version": build.String(),
 		"verify":  js.FuncOf(verifyJS),
 		"tamper":  js.FuncOf(tamperJS),
 	})

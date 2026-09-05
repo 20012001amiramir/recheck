@@ -10,23 +10,30 @@
 #   ./build.sh smoke     the native binary and the npm wrapper against the vectors (needs node)
 #   ./build.sh all       test, build, wasm, smoke
 #
-# GO_IMAGE overrides the toolchain image (default golang:1.23-alpine). VERSION overrides the
-# version compiled in (default: the tag on HEAD, else npm/package.json's version plus the short
-# commit id).
+# GO_IMAGE and TINYGO_IMAGE override the toolchain images (golang:1.23-alpine, tinygo/tinygo:0.38.0);
+# PAGE_TOOLCHAIN=go builds the page's module with standard Go instead of TinyGo. VERSION overrides
+# the version compiled in (default: the tag on HEAD, else npm/package.json's version plus the
+# short commit id).
 set -eu
 cd "$(dirname "$0")"
 
 GO_IMAGE="${GO_IMAGE:-golang:1.23-alpine}"
+TINYGO_IMAGE="${TINYGO_IMAGE:-tinygo/tinygo:0.38.0}"
+# The page's module is built with TinyGo (a fifth of the size); PAGE_TOOLCHAIN=go uses standard Go.
+PAGE_TOOLCHAIN="${PAGE_TOOLCHAIN:-tinygo}"
 pkg_version() { sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' npm/package.json | head -n 1; }
 VERSION="${VERSION:-$(git describe --tags --exact-match 2>/dev/null || echo "$(pkg_version)+$(git rev-parse --short HEAD 2>/dev/null || echo dev)")}"
-LDFLAGS="-s -w -X github.com/20012001amiramir/recheck/internal/build.Version=$VERSION"
+VERSION_FLAG="-X github.com/20012001amiramir/recheck/internal/build.Version=$VERSION"
+LDFLAGS="-s -w $VERSION_FLAG"
 
 # git-bash on Windows rewrites /src into a Windows path unless told not to.
 export MSYS_NO_PATHCONV=1
 
-# gorun [NAME=value ...] -- command args...: runs the command with those variables set, inside
-# the toolchain container or (GO_LOCAL=1) directly.
-gorun() {
+# toolrun IMAGE [NAME=value ...] -- command args...: runs the command with those variables set,
+# inside that container or (GO_LOCAL=1) directly with the tools on PATH.
+toolrun() {
+  image="$1"
+  shift
   vars=""
   while [ "$1" != "--" ]; do vars="$vars $1"; shift; done
   shift
@@ -34,11 +41,20 @@ gorun() {
     # shellcheck disable=SC2086
     env $vars "$@"
   else
-    flags=""
+    flags="${toolrun_flags:-}"
     for kv in $vars; do flags="$flags -e $kv"; done
     # shellcheck disable=SC2086
-    docker run --rm -v "$PWD":/src -v recheck-gocache:/root/.cache/go-build -w /src $flags "$GO_IMAGE" "$@"
+    docker run --rm -v "$PWD":/src -v recheck-gocache:/root/.cache/go-build -w /src $flags "$image" "$@"
   fi
+}
+gorun() { toolrun "$GO_IMAGE" "$@"; }
+# The TinyGo image runs as an unprivileged user, who can neither overwrite what the Go image wrote
+# nor stamp VCS state into a checkout owned by someone else; it runs as root here, like the Go
+# image, and the version reaches the module through the linker anyway.
+tinyrun() {
+  toolrun_flags="-u 0:0 -e HOME=/root"
+  toolrun "$TINYGO_IMAGE" GOFLAGS=-buildvcs=false "$@"
+  toolrun_flags=""
 }
 
 host_target() {
@@ -79,13 +95,22 @@ cmd_release() {
 
 cmd_wasm() {
   mkdir -p wasm npm/wasm
-  echo "building wasm (standard Go, GOOS=js GOARCH=wasm)"
-  # The page's module has no command line in it; the npm package's does.
-  gorun GOOS=js GOARCH=wasm -- go build -trimpath -tags nocli -ldflags "$LDFLAGS" -o wasm/recheck.wasm ./cmd/wasm
+  # The page's module has no command line in it (-tags nocli). Each toolchain ships its own
+  # runtime shim, so wasm_exec.js is copied from whichever built the module next to it.
+  if [ "$PAGE_TOOLCHAIN" = tinygo ]; then
+    echo "building wasm/recheck.wasm (TinyGo, -tags nocli)"
+    tinyrun -- tinygo build -o wasm/recheck.wasm -target wasm -no-debug -tags nocli -ldflags "$VERSION_FLAG" ./cmd/wasm
+    tinyrun -- sh -c 'cp "$(tinygo env TINYGOROOT)/targets/wasm_exec.js" wasm/'
+  else
+    echo "building wasm/recheck.wasm (standard Go, -tags nocli)"
+    gorun GOOS=js GOARCH=wasm -- go build -trimpath -tags nocli -ldflags "$LDFLAGS" -o wasm/recheck.wasm ./cmd/wasm
+    gorun -- sh -c 'cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm/ 2>/dev/null || cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" wasm/'
+  fi
+  # The npm package's module carries the command line, whose net/http needs standard Go. The
+  # shim moved from misc/wasm to lib/wasm in Go 1.24.
+  echo "building npm/wasm/recheck.wasm (standard Go)"
   gorun GOOS=js GOARCH=wasm -- go build -trimpath -ldflags "$LDFLAGS" -o npm/wasm/recheck.wasm ./cmd/wasm
-  # The runtime shim moved from misc/wasm to lib/wasm in Go 1.24.
-  gorun -- sh -c 'cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm/ 2>/dev/null || cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" wasm/'
-  cp wasm/wasm_exec.js npm/wasm/
+  gorun -- sh -c 'cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" npm/wasm/ 2>/dev/null || cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" npm/wasm/'
   cp LICENSE npm/LICENSE
   # The valid receipt from the vectors as a plain file, for the smoke test and for readers.
   gorun -- go run ./cmd/recheck vectors-extract spec/vectors/receipt.json receipt > spec/vectors/receipt-valid.json
@@ -123,8 +148,12 @@ cmd_smoke() {
     expect_exit 0 node npm/bin/exhibitb.js verify spec/vectors/receipt-valid.json --keys spec/vectors/test-key.json
     expect_exit 2 node npm/bin/exhibitb.js verify spec/vectors/receipt-valid.json
     expect_exit 1 node npm/bin/exhibitb.js verify dist/receipt-tampered.json --keys spec/vectors/test-key.json
-    echo "smoke: the browser API of the same module -> 0"
+    echo "smoke: the browser API of the page's module -> 0"
     expect_exit 0 node wasm/check.js
+    echo "smoke: the page's module and the npm package's answer alike on every vector"
+    node wasm/dump.js wasm/recheck.wasm wasm/wasm_exec.js > dist/dump-page.json
+    node wasm/dump.js npm/wasm/recheck.wasm npm/wasm/wasm_exec.js > dist/dump-npm.json
+    cmp dist/dump-page.json dist/dump-npm.json
   else
     echo "smoke: node not found, the npm wrapper was not exercised" >&2
   fi

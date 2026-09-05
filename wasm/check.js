@@ -3,22 +3,33 @@
 // Exercises the browser API of recheck.wasm under Node. argv is left at the Go runtime's default,
 // so the module installs globalThis.recheck instead of running the command line — the same path
 // a page takes through recheck.js. Run by `./build.sh smoke` after `./build.sh wasm`.
+//
+//   node wasm/check.js [recheck.wasm [wasm_exec.js]]     defaults: the files next to this script
 
 const fs = require("fs");
 const path = require("path");
 
+const wasmPath = path.resolve(process.argv[2] || path.join(__dirname, "recheck.wasm"));
+const execPath = path.resolve(process.argv[3] || path.join(__dirname, "wasm_exec.js"));
+
 globalThis.fs = fs;
 if (!globalThis.crypto) globalThis.crypto = require("crypto").webcrypto;
-require(path.join(__dirname, "wasm_exec.js"));
+require(execPath);
 
 const vectors = path.join(__dirname, "..", "spec", "vectors");
 const receipt = fs.readFileSync(path.join(vectors, "receipt-valid.json"), "utf8");
 const keys = fs.readFileSync(path.join(vectors, "test-key.json"), "utf8");
 const edited = receipt.replace('"seq": 1,', '"seq": 2,');
 
+// Until the checks have run, any exit is a failure — a module that dies on start may exit 0 on
+// its own or leave nothing pending. Writes are flushed before exiting: on Windows a pipe is
+// asynchronous and exit() would drop them.
+process.exitCode = 1;
+let done = false;
+const exit = process.exit.bind(process);
+process.exit = (code) => exit(done ? code : 1);
 function fail(msg) {
-  process.stderr.write(`check.js: ${msg && msg.stack ? msg.stack : msg}\n`);
-  process.exit(1);
+  process.stderr.write(`check.js: ${msg && msg.stack ? msg.stack : msg}\n`, () => process.exit(1));
 }
 function expect(cond, what) {
   if (!cond) fail(`expected ${what}`);
@@ -29,7 +40,7 @@ const ready = new Promise((resolve) => {
   globalThis.__recheckReady = resolve;
 });
 
-WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, "recheck.wasm")), go.importObject)
+WebAssembly.instantiate(fs.readFileSync(wasmPath), go.importObject)
   .then(({ instance }) => {
     go.run(instance).then(() => fail("the module exited instead of staying resident"), fail);
     return ready;
@@ -53,7 +64,10 @@ WebAssembly.instantiate(fs.readFileSync(path.join(__dirname, "recheck.wasm")), g
     expect(diff.changed === true && diff.path === "/seq" && diff.whitespace_only === false && diff.invalid_json === false, "tamper to point at /seq");
     expect(same.changed === false && same.offset === -1, "tamper to see no change");
 
-    process.stdout.write(`check.js: recheck ${api.version} browser API ok (verify 2/0/1/64, tamper ${diff.path} at ${diff.line}:${diff.col} offset ${diff.offset})\n`);
-    process.exit(0);
+    done = true;
+    process.stdout.write(
+      `check.js: recheck ${api.version} browser API ok in ${path.basename(wasmPath)} (verify 2/0/1/64, tamper ${diff.path} at ${diff.line}:${diff.col} offset ${diff.offset})\n`,
+      () => process.exit(0),
+    );
   })
   .catch(fail);

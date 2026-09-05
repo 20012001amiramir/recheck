@@ -63,7 +63,7 @@ type env struct {
 // Main runs the command line and returns the exit code.
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	e := &env{stdin: stdin, stdout: stdout, stderr: stderr}
-	refetch.UserAgent = "recheck/" + build.Version + " (+https://github.com/20012001amiramir/recheck)"
+	refetch.UserAgent = "recheck/" + build.String() + " (+https://github.com/20012001amiramir/recheck)"
 	if len(args) == 0 {
 		fmt.Fprint(stderr, Usage)
 		return ExitUsage
@@ -83,7 +83,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "countersign":
 		return e.countersign(rest)
 	case "version", "--version", "-v":
-		fmt.Fprintln(stdout, "recheck "+build.Version)
+		fmt.Fprintln(stdout, "recheck "+build.String())
 		return ExitOK
 	case "help", "--help", "-h":
 		fmt.Fprint(stdout, Usage+usageNotes)
