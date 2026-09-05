@@ -15,17 +15,21 @@ npx exhibitb verify receipt.json
 ## What a receipt proves, and what it does not
 
 An EXHIBIT B receipt is an ed25519-signed, hash-chained record of a check the issuer ran over a
-document: every citation in the document was resolved, fetched from more than one vantage point,
-hashed and timestamped, and for each one the receipt says whether the source existed, whether it
-could be read, and whether the quoted text was found in it. Every receipt carries this sentence,
-and the schema refuses one without it:
+document: every citation in the document was resolved, fetched, hashed and timestamped, and for
+each one the receipt says whether the source existed, whether it could be read, and whether the
+quoted text was found in it. The fetch is attempted from more than one vantage point and the
+receipt records what came back — `single_retriever` marks a citation where only one vantage
+answered, `retriever_disagreement` one where two returned different bytes — so a reader can see
+how much corroboration is behind each line rather than assume it. Every receipt carries this
+sentence, and the schema refuses one without it:
 
 > Attests what was checked, against which sources, at what time. Not a claim of truth.
 
 A `PASS` from `recheck` establishes that:
 
-- the file is byte-for-byte what the issuer sealed — `self_hash` recomputes over its canonical
-  form (§1–§2 of the spec), so a changed character anywhere in the body is caught;
+- the file matches what the issuer sealed under canonical-form equality — `self_hash` recomputes
+  over the canonical form (§1–§2 of the spec), so a changed character anywhere in the body is
+  caught, while reformatting alone is not a change;
 - the issuer's key signed exactly that hash, and the key is one this build pins (or one you
   passed in);
 - the receipt has a definite place in the issuer's chain — `seq` and `prev_hash` — and, given the
@@ -48,9 +52,9 @@ vectors included — reports `key_pinned: warn` and `RESULT: INCOMPLETE`, never 
 - **npm** (Node 18 or newer): `npx exhibitb verify receipt.json`, or `npm i -g exhibitb` for a
   permanent `exhibitb` / `recheck` command. The package is the same verifier compiled to
   WebAssembly.
-- **Binaries**: `recheck-linux-amd64`, `recheck-linux-arm64`, `recheck-darwin-arm64` and
-  `recheck-windows-amd64.exe` are attached to each
-  [release](https://github.com/20012001amiramir/recheck/releases).
+- **Binaries**: `make release` cross-compiles `recheck-linux-amd64`, `recheck-linux-arm64`,
+  `recheck-darwin-arm64` and `recheck-windows-amd64.exe` into `dist/`. Nothing is published to
+  the Releases page yet, so build them or use one of the routes above.
 - **Go**: `go install github.com/20012001amiramir/recheck/cmd/recheck@latest`
 - **From source**: `make build` (Docker, no local Go needed) — see [Building](#building-and-testing).
 
@@ -275,7 +279,7 @@ halves are public by design, so that the vectors are reproducible by anyone.
   import { loadRecheck } from "/recheck.js";
   const recheck = await loadRecheck("/recheck.wasm");   // one fetch, this URL, nothing else
 
-  recheck.version;                                        // "0.1.0"
+  recheck.version;                       // "0.1.0+<sha>", or the tag from a tagged build
   JSON.parse(recheck.verify(receiptText));               // the --json object above
   JSON.parse(recheck.verify(receiptText, { keys, root, proof }));   // each the text of that file
   JSON.parse(recheck.tamper(receiptText, editedText));   // see below
