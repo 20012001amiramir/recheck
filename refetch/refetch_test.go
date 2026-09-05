@@ -80,27 +80,39 @@ func TestFetch(t *testing.T) {
 }
 
 func TestNeverContactsTheIssuer(t *testing.T) {
-	for _, host := range []string{"exhibitb.autofract.com", "EXHIBITB.autofract.com", "exhibitb.com", "exhibitb", "exhibitb.autofract.com.", "exhibitb.autofract.com:443"} {
+	for _, host := range []string{"exhibitb.autofract.com", "EXHIBITB.autofract.com", "exhibitb.com", "exhibitb", "exhibitb.autofract.com.", "exhibitb.autofract.com:443",
+		// The label anywhere in the name is the issuer: a subdomain, or the issuer's name inside someone else's.
+		"api.exhibitb.autofract.com", "www.exhibitb.autofract.com", "API.EXHIBITB.autofract.com:8443", "www.exhibitb.autofract.com.evil.example"} {
 		if !refetch.IsIssuerHost(host) {
 			t.Errorf("%s should be refused", host)
 		}
 	}
-	for _, host := range []string{"example.org", "notexhibitb.com", "exhibitb-roots.example", "www.exhibitb.autofract.com.evil.example"} {
+	// A label that only contains the word is not the issuer.
+	for _, host := range []string{"example.org", "notexhibitb.com", "exhibitb-roots.example", "exhibitbx.example", "autofract.com", "[::1]:443"} {
 		if refetch.IsIssuerHost(host) {
 			t.Errorf("%s should be allowed", host)
 		}
 	}
 	client := refetch.NewClient()
 	// Refused before any connection: a port nobody listens on never gets dialed.
-	if _, err := refetch.Fetch(context.Background(), client, "https://exhibitb.autofract.com/api/receipt/eb_2m4Kq8Xr7vTb3nHd"); !errors.Is(err, refetch.ErrIssuerHost) {
-		t.Errorf("issuer URL: %v", err)
+	for _, u := range []string{"https://exhibitb.autofract.com/api/receipt/eb_2m4Kq8Xr7vTb3nHd", "https://api.exhibitb.autofract.com/api/receipt/eb_2m4Kq8Xr7vTb3nHd"} {
+		if _, err := refetch.Fetch(context.Background(), client, u); !errors.Is(err, refetch.ErrIssuerHost) {
+			t.Errorf("issuer URL %s: %v", u, err)
+		}
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://exhibitb.autofract.com/", http.StatusFound)
-	}))
+	})
+	mux.HandleFunc("/sub", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://api.exhibitb.autofract.com/api/receipt/x", http.StatusFound)
+	})
+	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	if _, err := refetch.Fetch(context.Background(), client, srv.URL+"/"); !errors.Is(err, refetch.ErrIssuerHost) {
-		t.Errorf("redirect to the issuer: %v", err)
+	for _, path := range []string{"/", "/sub"} {
+		if _, err := refetch.Fetch(context.Background(), client, srv.URL+path); !errors.Is(err, refetch.ErrIssuerHost) {
+			t.Errorf("redirect via %s to the issuer: %v", path, err)
+		}
 	}
 	for _, bad := range []string{"ftp://example.org/x", "file:///etc/passwd", "example.org/x", "http:///x"} {
 		if _, err := refetch.Fetch(context.Background(), client, bad); err == nil {

@@ -1,7 +1,7 @@
 // Package refetch downloads a cited URL from the user's own machine and hashes the raw bytes, so a
 // reader can see whether a source still carries what the receipt says it carried. It never
-// contacts the issuer: any host named exhibitb or under exhibitb.* is refused before a connection
-// is made, on the first request and on every redirect.
+// contacts the issuer: any host with exhibitb as one of its DNS labels is refused before a
+// connection is made, on the first request and on every redirect.
 package refetch
 
 import (
@@ -43,13 +43,20 @@ type Result struct {
 	ContentType string `json:"content_type"`
 }
 
-// IsIssuerHost reports whether host is the issuer's: exhibitb or exhibitb.<anything>.
+// IsIssuerHost reports whether host is the issuer's: exhibitb, or any host with exhibitb as one of
+// its DNS labels — exhibitb.autofract.com, api.exhibitb.autofract.com, and anything under either.
+// A label that merely contains the word (exhibitb-roots.example, notexhibitb.com) is someone else's.
 func IsIssuerHost(host string) bool {
 	h := strings.ToLower(strings.TrimSuffix(host, "."))
 	if i := strings.LastIndex(h, ":"); i >= 0 && !strings.Contains(h, "]") {
 		h = h[:i]
 	}
-	return h == "exhibitb" || strings.HasPrefix(h, "exhibitb.")
+	for _, label := range strings.Split(h, ".") {
+		if label == "exhibitb" {
+			return true
+		}
+	}
+	return false
 }
 
 func check(u *url.URL) error {

@@ -91,8 +91,10 @@ verification:
   no-op, for scripts that want to state it.
 - `--refetch` downloads each cited URL from *your* machine (15 s timeout, 5 MB cap, at most five
   redirects) and compares the sha256 of the raw bytes with the receipt's `content_sha256`. It
-  refuses any URL on an `exhibitb.*` host, on the first request and on every redirect, so the
-  issuer never sees what you re-check.
+  refuses any URL whose host has `exhibitb` as one of its DNS labels — `exhibitb.autofract.com`,
+  `api.exhibitb.autofract.com`, anything under them; not `exhibitb-roots.example` — on the first
+  request and on every redirect. The verifier sends the issuer nothing about a re-check, and this
+  guard keeps it that way when a cited URL or a redirect points at one of the issuer's hosts.
 
 Do not take this file's word for it:
 
@@ -199,7 +201,8 @@ final_url https://cdn.example.org/reports/2026/q1.pdf
 ```
 
 The same fetch `--refetch` does, for one URL, so a hash in a receipt can be compared by hand.
-Exit 2 when the URL cannot be fetched; an `exhibitb.*` host is refused.
+Exit 2 when the URL cannot be fetched; a host with `exhibitb` as one of its labels is refused, as
+under `--refetch`.
 
 ### `show`
 
