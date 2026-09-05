@@ -278,11 +278,30 @@ func refetchHash(url string) (string, error) {
 	return r.SHA256, nil
 }
 
+// issuerClient is the client of the one online path. A redirect off the issuer's hosts would
+// carry the receipt id somewhere else and bring back a body from whoever answered it, which is
+// what the checks would then run over; a redirect is followed only while it stays on the issuer
+// over https, and only a few times.
+func issuerClient() *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= refetch.MaxRedirects {
+				return fmt.Errorf("more than %d redirects", refetch.MaxRedirects)
+			}
+			if req.URL.Scheme != "https" || !refetch.IsIssuerHost(req.URL.Hostname()) {
+				return fmt.Errorf("refusing a redirect off the issuer, to %s", req.URL.Redacted())
+			}
+			return nil
+		},
+	}
+}
+
 // fetchFromIssuer downloads a receipt's public projection: the one online path. With an error it
 // returns the exit code for it — 64 when the issuer says it has no such receipt, since the id
 // was the caller's; 2 for no answer or a broken one, since then no check could run.
 func fetchFromIssuer(id string) ([]byte, int, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := issuerClient()
 	req, err := http.NewRequest(http.MethodGet, IssuerURL+"/api/receipt/"+id, nil)
 	if err != nil {
 		return nil, ExitUsage, err
