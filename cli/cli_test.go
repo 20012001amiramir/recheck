@@ -58,6 +58,7 @@ func fixtures(t *testing.T) map[string]string {
 	rv := load("receipt.json")
 	write("receipt.json", rv.Get("receipt"))
 	write("projection.json", rv.Get("projection"))
+	write("projection_tampered.json", rv.Get("projection_tampered").Get("receipt"))
 	write("unchained.json", rv.Get("unchained").Get("receipt"))
 	write("tampered.json", rv.Get("tampered").Array[0].Get("receipt"))
 	write("surrogate.json", rv.Get("tampered").Array[3].Get("receipt"))
@@ -93,7 +94,9 @@ func TestVerifyExitCodes(t *testing.T) {
 		{"test-key.json works as a key set", []string{"verify", f["receipt.json"], "--keys", f["test-key.json"]}, 0, "RESULT: PASS"},
 		{"valid, key unknown to the pinned set", []string{"verify", f["receipt.json"]}, 2, "issuer key not pinned"},
 		{"offline is a no-op", []string{"verify", f["receipt.json"], "--offline", "--keys", f["keys.json"]}, 0, "RESULT: PASS"},
-		{"projection", []string{"verify", f["projection.json"], "--keys", f["keys.json"]}, 2, "RESULT: INCOMPLETE"},
+		{"projection", []string{"verify", f["projection.json"], "--keys", f["keys.json"]}, 0, "RESULT: PASS"},
+		{"projection, its own signature checked", []string{"verify", f["projection.json"], "--keys", f["keys.json"], "--ascii"}, 0, "+ projection_signature"},
+		{"projection an attacker rewrote", []string{"verify", f["projection_tampered.json"], "--keys", f["keys.json"]}, 1, "projection_sig does not verify"},
 		{"unchained", []string{"verify", f["unchained.json"], "--keys", f["keys.json"]}, 0, "not anchored to the public chain"},
 		{"tampered", []string{"verify", f["tampered.json"], "--keys", f["keys.json"]}, 1, "RESULT: FAIL"},
 		{"lone surrogate", []string{"verify", f["surrogate.json"], "--keys", f["keys.json"]}, 1, "unpaired surrogate"},
@@ -226,7 +229,9 @@ func TestShowKeygenCountersign(t *testing.T) {
 	}
 	shown := filepath.Join(f["dir"], "shown.json")
 	os.WriteFile(shown, []byte(r.stdout), 0o644)
-	if r := exec(t, "", "verify", shown, "--keys", f["keys.json"]); r.code != 2 || !strings.Contains(r.stdout, "public projection") {
+	// show prints the projection for reading; it cannot sign one, so the output has no
+	// projection_sig and is not a verifiable artifact — verifying it is a schema failure that says so.
+	if r := exec(t, "", "verify", shown, "--keys", f["keys.json"]); r.code != 1 || !strings.Contains(r.stdout, "projection_sig") {
 		t.Errorf("verify shown projection: %d %s", r.code, r.stdout)
 	}
 	if r := exec(t, "", "show", f["keys.json"]); r.code != 1 {

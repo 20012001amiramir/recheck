@@ -111,6 +111,7 @@ func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 
 	cnt := o.Obj("counts")
 	r.Counts.Claims = cnt.Int("claims", 0, canonical.MaxSafeInteger)
+	r.Counts.NotChecked = cnt.Int("not_checked", 0, canonical.MaxSafeInteger)
 	r.Counts.Resolved = cnt.Int("resolved", 0, canonical.MaxSafeInteger)
 	r.Counts.NoAccess = cnt.Int("no_access", 0, canonical.MaxSafeInteger)
 	r.Counts.NotFound = cnt.Int("not_found", 0, canonical.MaxSafeInteger)
@@ -153,6 +154,12 @@ func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 		})
 		so.Done()
 	}
+	// A projection carries one member a receipt never does: its own signature (§11). Requiring it
+	// here is also what keeps the two schemas apart, and refuses a projection with the signature
+	// stripped off.
+	if projected {
+		r.ProjectionSig = o.Str("projection_sig", schema.SigB64)
+	}
 	o.Done()
 	if err := v.Err(); err != nil {
 		return nil, err
@@ -193,6 +200,7 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 	}
 	loc.Done()
 
+	c.SourceOf = o.Enum("source_of", "body", "list")
 	c.Level = o.Enum("level", "EXISTS", "SAYS")
 
 	ex := o.Obj("exists")
@@ -226,7 +234,7 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 	c.Exists.RetrieverDisagreement = ex.Boolean("retriever_disagreement")
 	c.Exists.SingleRetriever = ex.Boolean("single_retriever")
 	if reg := ex.ObjOrNull("registry"); reg != nil {
-		c.Exists.Registry = &Registry{Agency: reg.Str("agency", schema.Token(32)), Status: reg.Int("status", 0, 999)}
+		c.Exists.Registry = &Registry{Agency: reg.Str("agency", schema.Token(32)), Status: reg.Int("status", 0, 999), Method: reg.StrOrNull("method", schema.Token(16))}
 		reg.Done()
 	}
 	if !projected {

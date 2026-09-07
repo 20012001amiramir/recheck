@@ -1,5 +1,5 @@
 {
-  "note": "One sealed receipt signed with spec/vectors/test-key.json, its public projection, an unchained receipt over the same body, then five copies a verifier must reject.",
+  "note": "One sealed receipt signed with spec/vectors/test-key.json, its public projection, a projection an attacker rewrote, an unchained receipt over the same body, then five copies a verifier must reject.",
   "key": {
     "key_id": "eb-receipt-test",
     "public_key": "+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ="
@@ -44,6 +44,7 @@
           "value": "https://www.example.org/reports/2026/q1.pdf",
           "url": "https://www.example.org/reports/2026/q1.pdf"
         },
+        "source_of": "body",
         "level": "SAYS",
         "exists": {
           "verdict": "RESOLVED",
@@ -101,6 +102,7 @@
           "value": "10.1136/bmj.n1234",
           "url": "https://doi.org/10.1136/bmj.n1234"
         },
+        "source_of": "body",
         "level": "SAYS",
         "exists": {
           "verdict": "RESOLVED_NO_ACCESS",
@@ -123,7 +125,8 @@
           "single_retriever": true,
           "registry": {
             "agency": "crossref",
-            "status": 200
+            "status": 200,
+            "method": null
           },
           "archive_url": null,
           "archive_status": "skipped",
@@ -152,6 +155,7 @@
           "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
           "url": null
         },
+        "source_of": "list",
         "level": "EXISTS",
         "exists": {
           "verdict": "UNSUPPORTED_LOCATOR",
@@ -183,6 +187,7 @@
     ],
     "counts": {
       "claims": 3,
+      "not_checked": 0,
       "resolved": 1,
       "no_access": 1,
       "not_found": 0,
@@ -213,18 +218,18 @@
         "drift_min_bp": 7500
       }
     },
-    "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+    "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
     "signatures": [
       {
         "key_id": "eb-receipt-test",
         "alg": "ed25519",
-        "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+        "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
         "role": "issuer"
       }
     ]
   },
-  "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
-  "canonical_sha256": "4e400c73b500acfce654512a9cf647e3dfd6cfeb6c41b356185b8f3070621826",
+  "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
+  "canonical_sha256": "9f4f696085a078c3abe2e572b30e1f7a73b5bf171ffb4037e781deee9c8a4111",
   "projection": {
     "v": 1,
     "kind": "exhibitb.receipt",
@@ -253,6 +258,7 @@
     },
     "counts": {
       "claims": 3,
+      "not_checked": 0,
       "resolved": 1,
       "no_access": 1,
       "not_found": 0,
@@ -283,12 +289,12 @@
         "drift_min_bp": 7500
       }
     },
-    "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+    "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
     "signatures": [
       {
         "key_id": "eb-receipt-test",
         "alg": "ed25519",
-        "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+        "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
         "role": "issuer"
       }
     ],
@@ -305,6 +311,7 @@
           "type": "url",
           "domain": "example.org"
         },
+        "source_of": "body",
         "level": "SAYS",
         "exists": {
           "verdict": "RESOLVED",
@@ -359,6 +366,7 @@
           "type": "doi",
           "domain": "crossref"
         },
+        "source_of": "body",
         "level": "SAYS",
         "exists": {
           "verdict": "RESOLVED_NO_ACCESS",
@@ -380,7 +388,8 @@
           "single_retriever": true,
           "registry": {
             "agency": "crossref",
-            "status": 200
+            "status": 200,
+            "method": null
           },
           "archive_status": "skipped",
           "archive_job_id": null
@@ -407,6 +416,7 @@
           "type": "unsupported",
           "domain": null
         },
+        "source_of": "list",
         "level": "EXISTS",
         "exists": {
           "verdict": "UNSUPPORTED_LOCATOR",
@@ -433,7 +443,228 @@
         "refutation_attempted": false,
         "dissent": null
       }
-    ]
+    ],
+    "projection_sig": "BUXZ2GiSnpFFIKfp6WqFfsJL3yOB7/alqLMUr7/czO+BfYupRPx2wPBj3+ZrsOegrBK2UErExm5EQSR8+RX6BQ=="
+  },
+  "projection_tampered": {
+    "name": "a count and a verdict rewritten in a projection, self_hash and signatures untouched",
+    "first_failure": "projection_signature",
+    "receipt": {
+      "v": 1,
+      "kind": "exhibitb.receipt",
+      "id": "eb_2m4Kq8Xr7vTb3nHd",
+      "seq": 1,
+      "prev_hash": "3058620acf7ca95f8cc2c8970e7fc04afdbdeab9e688603bdd2e03a3bfcb588f",
+      "issued_at": "2026-09-03T11:22:44Z",
+      "issuer": {
+        "name": "EXHIBIT B",
+        "url": "https://exhibitb.autofract.com",
+        "key_id": "eb-receipt-test",
+        "public_key": "+OIf8AWG2M/e4fqmltCC+xtj9kmks5fAk3UjznkHRuQ="
+      },
+      "scope_disclaimer": "Attests what was checked, against which sources, at what time. Not a claim of truth.",
+      "document": {
+        "sha256": "43cc23fa52b87b4cc1d02b5b114154151d6adddb17c9fddc06b027fa99e24008",
+        "bytes": 812004,
+        "media_type": "application/pdf",
+        "text_sha256": "71950bf27a310ed916dc56ed4083b6abd97cfd951fbcc5de4d9344dc22d3b1c6",
+        "chars": 38204,
+        "extractor": "unpdf@1"
+      },
+      "binding": {
+        "alg": "HMAC-SHA256",
+        "key_sha256": "e812574a8171359a7237508365767609e18fac559f047b20dcbd5a7d6624ac81"
+      },
+      "counts": {
+        "claims": 3,
+        "not_checked": 0,
+        "resolved": 999,
+        "no_access": 1,
+        "not_found": 0,
+        "unreachable": 0,
+        "unsupported": 1,
+        "says_match": 1,
+        "says_drift": 0,
+        "says_not_found": 0,
+        "says_not_run": 2,
+        "holds_attempted": 1
+      },
+      "models": [
+        {
+          "role": "extract",
+          "model": "extract-model-2026-06"
+        },
+        {
+          "role": "refute",
+          "model": "refute-model-2026-06"
+        }
+      ],
+      "engine": {
+        "name": "exhibitb",
+        "version": "0.1.0",
+        "normalize": "norm@1",
+        "says_thresholds": {
+          "match_bp": 10000,
+          "drift_min_bp": 7500
+        }
+      },
+      "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
+      "signatures": [
+        {
+          "key_id": "eb-receipt-test",
+          "alg": "ed25519",
+          "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
+          "role": "issuer"
+        }
+      ],
+      "claims": [
+        {
+          "n": 1,
+          "claim_hmac": "ae3effe6bb2f5b785f7e2b443467fd4ce374a5fd7ce18019a268f0c253e46f5c",
+          "quote_hmac": "f2c7cf24d2736461298d70e3fbdca3f2dbee0027c783e01a351d99c36ab051e4",
+          "doc_span": [
+            120,
+            268
+          ],
+          "locator": {
+            "type": "url",
+            "domain": "example.org"
+          },
+          "source_of": "body",
+          "level": "SAYS",
+          "exists": {
+            "verdict": "NOT_FOUND",
+            "http_status": 200,
+            "fetched_at": "2026-09-03T11:22:33Z",
+            "content_type": "application/pdf",
+            "bytes": 481233,
+            "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde",
+            "text_sha256": "578c656a52e97f852c876e7ab070bca12a9a9cc1cf59d25470236818415ce8af",
+            "retrievers": [
+              {
+                "id": "A",
+                "vantage": "origin",
+                "status": 200,
+                "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde"
+              },
+              {
+                "id": "B",
+                "vantage": "relay",
+                "status": 200,
+                "content_sha256": "a6c96f6533f8bcdb7549fd993b3e14a6af8c7ddf447d5535adde121a5936efde"
+              }
+            ],
+            "retriever_disagreement": false,
+            "single_retriever": false,
+            "registry": null,
+            "archive_status": "archived",
+            "archive_job_id": "spn2-0123456789abcdef"
+          },
+          "says": {
+            "verdict": "MATCH",
+            "reason": null,
+            "quoted_span": [
+              1044,
+              1180
+            ],
+            "match_kind": "exact",
+            "overlap_bp": 10000
+          },
+          "refutation_attempted": true,
+          "dissent": null
+        },
+        {
+          "n": 2,
+          "claim_hmac": "7eaf41f74f076bff9778f8be49c58129f7dd18abff939bf58058147fc0fdb8e7",
+          "quote_hmac": "60af6f683cc4ce62078f65c870f4087b18a4548a352242c873f2d84fdfa86cb7",
+          "doc_span": [
+            301,
+            455
+          ],
+          "locator": {
+            "type": "doi",
+            "domain": "crossref"
+          },
+          "source_of": "body",
+          "level": "SAYS",
+          "exists": {
+            "verdict": "RESOLVED_NO_ACCESS",
+            "http_status": 403,
+            "fetched_at": "2026-09-03T11:22:41Z",
+            "content_type": null,
+            "bytes": null,
+            "content_sha256": null,
+            "text_sha256": null,
+            "retrievers": [
+              {
+                "id": "A",
+                "vantage": "origin",
+                "status": 403,
+                "content_sha256": null
+              }
+            ],
+            "retriever_disagreement": false,
+            "single_retriever": true,
+            "registry": {
+              "agency": "crossref",
+              "status": 200,
+              "method": null
+            },
+            "archive_status": "skipped",
+            "archive_job_id": null
+          },
+          "says": {
+            "verdict": "NOT_RUN",
+            "reason": "no_source_text",
+            "quoted_span": null,
+            "match_kind": null,
+            "overlap_bp": null
+          },
+          "refutation_attempted": false,
+          "dissent": null
+        },
+        {
+          "n": 3,
+          "claim_hmac": "be6f2dcbb176f849fb1436aeb4d5771819fbf9f68de5d15793fbf50d5bc87d10",
+          "quote_hmac": null,
+          "doc_span": [
+            600,
+            702
+          ],
+          "locator": {
+            "type": "unsupported",
+            "domain": null
+          },
+          "source_of": "list",
+          "level": "EXISTS",
+          "exists": {
+            "verdict": "UNSUPPORTED_LOCATOR",
+            "http_status": null,
+            "fetched_at": null,
+            "content_type": null,
+            "bytes": null,
+            "content_sha256": null,
+            "text_sha256": null,
+            "retrievers": [],
+            "retriever_disagreement": false,
+            "single_retriever": false,
+            "registry": null,
+            "archive_status": "skipped",
+            "archive_job_id": null
+          },
+          "says": {
+            "verdict": "NOT_RUN",
+            "reason": "unsupported_locator",
+            "quoted_span": null,
+            "match_kind": null,
+            "overlap_bp": null
+          },
+          "refutation_attempted": false,
+          "dissent": null
+        }
+      ],
+      "projection_sig": "BUXZ2GiSnpFFIKfp6WqFfsJL3yOB7/alqLMUr7/czO+BfYupRPx2wPBj3+ZrsOegrBK2UErExm5EQSR8+RX6BQ=="
+    }
   },
   "unchained": {
     "receipt": {
@@ -476,6 +707,7 @@
             "value": "https://www.example.org/reports/2026/q1.pdf",
             "url": "https://www.example.org/reports/2026/q1.pdf"
           },
+          "source_of": "body",
           "level": "SAYS",
           "exists": {
             "verdict": "RESOLVED",
@@ -533,6 +765,7 @@
             "value": "10.1136/bmj.n1234",
             "url": "https://doi.org/10.1136/bmj.n1234"
           },
+          "source_of": "body",
           "level": "SAYS",
           "exists": {
             "verdict": "RESOLVED_NO_ACCESS",
@@ -555,7 +788,8 @@
             "single_retriever": true,
             "registry": {
               "agency": "crossref",
-              "status": 200
+              "status": 200,
+              "method": null
             },
             "archive_url": null,
             "archive_status": "skipped",
@@ -584,6 +818,7 @@
             "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
             "url": null
           },
+          "source_of": "list",
           "level": "EXISTS",
           "exists": {
             "verdict": "UNSUPPORTED_LOCATOR",
@@ -615,6 +850,7 @@
       ],
       "counts": {
         "claims": 3,
+        "not_checked": 0,
         "resolved": 1,
         "no_access": 1,
         "not_found": 0,
@@ -645,17 +881,17 @@
           "drift_min_bp": 7500
         }
       },
-      "self_hash": "8e999b5392b76736ba656bd6d9f4e403b19bd764c3041adc86e297507df0e00b",
+      "self_hash": "021672b1b65d87470d4162149f051806804c52fcea2baf0112587e53d826885f",
       "signatures": [
         {
           "key_id": "eb-receipt-test",
           "alg": "ed25519",
-          "sig": "gKcBJpdhBvQF5p0s7OjqWjyv8h96YFfoG+WDa3c+u07NRT5NEc/otYmyCVIjtsP/msbgqErv6GbAiP7MknKwDg==",
+          "sig": "vGIi30ER+Jmj4hisF4IlaJVH7xfzRZYfkS3zRd61KwG5SHlB69IBSQpDdgJN64nvoh5d+wqrKa6UfWRRfI2aDQ==",
           "role": "issuer"
         }
       ]
     },
-    "self_hash": "8e999b5392b76736ba656bd6d9f4e403b19bd764c3041adc86e297507df0e00b"
+    "self_hash": "021672b1b65d87470d4162149f051806804c52fcea2baf0112587e53d826885f"
   },
   "tampered": [
     {
@@ -701,6 +937,7 @@
               "value": "https://www.example.org/reports/2026/q1.pdf",
               "url": "https://www.example.org/reports/2026/q1.pdf"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED",
@@ -758,6 +995,7 @@
               "value": "10.1136/bmj.n1234",
               "url": "https://doi.org/10.1136/bmj.n1234"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED_NO_ACCESS",
@@ -780,7 +1018,8 @@
               "single_retriever": true,
               "registry": {
                 "agency": "crossref",
-                "status": 200
+                "status": 200,
+                "method": null
               },
               "archive_url": null,
               "archive_status": "skipped",
@@ -809,6 +1048,7 @@
               "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
               "url": null
             },
+            "source_of": "list",
             "level": "EXISTS",
             "exists": {
               "verdict": "UNSUPPORTED_LOCATOR",
@@ -840,6 +1080,7 @@
         ],
         "counts": {
           "claims": 3,
+          "not_checked": 0,
           "resolved": 1,
           "no_access": 1,
           "not_found": 0,
@@ -870,12 +1111,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
             "role": "issuer"
           }
         ]
@@ -924,6 +1165,7 @@
               "value": "https://www.example.org/reports/2026/q1.pdf",
               "url": "https://www.example.org/reports/2026/q1.pdf"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED",
@@ -981,6 +1223,7 @@
               "value": "10.1136/bmj.n1234",
               "url": "https://doi.org/10.1136/bmj.n1234"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED_NO_ACCESS",
@@ -1003,7 +1246,8 @@
               "single_retriever": true,
               "registry": {
                 "agency": "crossref",
-                "status": 200
+                "status": 200,
+                "method": null
               },
               "archive_url": null,
               "archive_status": "skipped",
@@ -1032,6 +1276,7 @@
               "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
               "url": null
             },
+            "source_of": "list",
             "level": "EXISTS",
             "exists": {
               "verdict": "UNSUPPORTED_LOCATOR",
@@ -1063,6 +1308,7 @@
         ],
         "counts": {
           "claims": 3,
+          "not_checked": 0,
           "resolved": 1,
           "no_access": 1,
           "not_found": 0,
@@ -1093,12 +1339,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "GQpsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "sig": "hhn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
             "role": "issuer"
           }
         ]
@@ -1147,6 +1393,7 @@
               "value": "https://www.example.org/reports/2026/q1.pdf",
               "url": "https://www.example.org/reports/2026/q1.pdf"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED",
@@ -1204,6 +1451,7 @@
               "value": "10.1136/bmj.n1234",
               "url": "https://doi.org/10.1136/bmj.n1234"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED_NO_ACCESS",
@@ -1226,7 +1474,8 @@
               "single_retriever": true,
               "registry": {
                 "agency": "crossref",
-                "status": 200
+                "status": 200,
+                "method": null
               },
               "archive_url": null,
               "archive_status": "skipped",
@@ -1255,6 +1504,7 @@
               "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
               "url": null
             },
+            "source_of": "list",
             "level": "EXISTS",
             "exists": {
               "verdict": "UNSUPPORTED_LOCATOR",
@@ -1286,6 +1536,7 @@
         ],
         "counts": {
           "claims": 3,
+          "not_checked": 0,
           "resolved": 1,
           "no_access": 1,
           "not_found": 0,
@@ -1316,12 +1567,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
             "role": "issuer"
           }
         ]
@@ -1370,6 +1621,7 @@
               "value": "https://www.example.org/reports/2026/q1.pdf",
               "url": "https://www.example.org/reports/2026/q1.pdf"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED",
@@ -1427,6 +1679,7 @@
               "value": "10.1136/bmj.n1234",
               "url": "https://doi.org/10.1136/bmj.n1234"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED_NO_ACCESS",
@@ -1449,7 +1702,8 @@
               "single_retriever": true,
               "registry": {
                 "agency": "crossref",
-                "status": 200
+                "status": 200,
+                "method": null
               },
               "archive_url": null,
               "archive_status": "skipped",
@@ -1478,6 +1732,7 @@
               "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
               "url": null
             },
+            "source_of": "list",
             "level": "EXISTS",
             "exists": {
               "verdict": "UNSUPPORTED_LOCATOR",
@@ -1509,6 +1764,7 @@
         ],
         "counts": {
           "claims": 3,
+          "not_checked": 0,
           "resolved": 1,
           "no_access": 1,
           "not_found": 0,
@@ -1539,12 +1795,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
             "role": "issuer"
           }
         ]
@@ -1593,6 +1849,7 @@
               "value": "https://www.example.org/reports/2026/q1.pdf",
               "url": "https://www.example.org/reports/2026/q1 .pdf"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED",
@@ -1650,6 +1907,7 @@
               "value": "10.1136/bmj.n1234",
               "url": "https://doi.org/10.1136/bmj.n1234"
             },
+            "source_of": "body",
             "level": "SAYS",
             "exists": {
               "verdict": "RESOLVED_NO_ACCESS",
@@ -1672,7 +1930,8 @@
               "single_retriever": true,
               "registry": {
                 "agency": "crossref",
-                "status": 200
+                "status": 200,
+                "method": null
               },
               "archive_url": null,
               "archive_status": "skipped",
@@ -1701,6 +1960,7 @@
               "value": "e1b3d1add65f258f3de93396c81aa54c1ee40c3f2e067e9826319f971317f72e",
               "url": null
             },
+            "source_of": "list",
             "level": "EXISTS",
             "exists": {
               "verdict": "UNSUPPORTED_LOCATOR",
@@ -1732,6 +1992,7 @@
         ],
         "counts": {
           "claims": 3,
+          "not_checked": 0,
           "resolved": 1,
           "no_access": 1,
           "not_found": 0,
@@ -1762,12 +2023,12 @@
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "1cb2f7a8834b8a9c120c593b88b407c7b83196cf7d6258519e3a7b8645e6bb3b",
+        "self_hash": "cf5857ecc180122c31e70cd509ae7e78ee40484916cc2a11ee2c8b68f0a45d7d",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "GApsnIKv85yi1bAaZkc/OysqO4b+Tt5HCr8BMemu2Nt4icQcT0/kVRwpf56dW2thAefq9opvF4J3GDeNXSALAw==",
+            "sig": "hxn2NycscfJnS12aLjRjIwwJRLedFK/BROGW06unYWElGmQmTQYbMNXUIjAPRDSlUuwqMp7l7oaKzUFdmbAqBQ==",
             "role": "issuer"
           }
         ]

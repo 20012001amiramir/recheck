@@ -33,7 +33,11 @@ type Receipt struct {
 	Engine          Engine
 	SelfHash        string
 	Signatures      []Signature
-	// Projected marks a public projection: cited URLs are gone and self_hash cannot be recomputed.
+	// ProjectionSig is a projection's own signature (§11): ed25519 by the receipt key over the
+	// projection self-hash. Empty on a full receipt, which never carries it.
+	ProjectionSig string
+	// Projected marks a public projection: cited URLs are gone, self_hash is not recomputed, and
+	// projection_sig binds the visible fields instead.
 	Projected bool
 }
 
@@ -68,6 +72,8 @@ type Claim struct {
 	QuoteHMAC           *string
 	DocSpan             [2]int64
 	Locator             Locator
+	// SourceOf is "body" or "list": which of the two kinds of claim this is (§4.6).
+	SourceOf            string
 	Level               string
 	Exists              Exists
 	Says                Says
@@ -115,6 +121,8 @@ type Retriever struct {
 type Registry struct {
 	Agency string
 	Status int64
+	// Method names the call that answered, when the registry has more than one; null otherwise (§4.8.1).
+	Method *string
 }
 
 // Says is §4.8.2.
@@ -128,7 +136,9 @@ type Says struct {
 
 // Counts is §4.9: the issuer's tallies, informational to a verifier.
 type Counts struct {
-	Claims         int64
+	Claims int64
+	// NotChecked is the citations the engine found and did not check, because a budget bound (§4.9).
+	NotChecked     int64
 	Resolved       int64
 	NoAccess       int64
 	NotFound       int64

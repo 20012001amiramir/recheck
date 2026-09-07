@@ -2,6 +2,7 @@ package receipt
 
 import (
 	"bytes"
+	"errors"
 	"strconv"
 
 	"github.com/20012001amiramir/recheck/canonical"
@@ -24,6 +25,29 @@ type Check struct {
 
 // The five receipt checks, in order (§12).
 var CheckNames = []string{"schema", "self_hash", "signature", "key_pinned", "chain_fields"}
+
+// The five checks a projection runs: checks 2 and 3 are taken over the projection itself (§11, §12).
+var ProjectionCheckNames = []string{"schema", "projection_self_hash", "projection_signature", "key_pinned", "chain_fields"}
+
+// ProjectionSelfHash is sha256 of the canonical bytes of a projection with only its top-level
+// projection_sig removed (§11) — what projection_sig signs.
+func ProjectionSelfHash(raw *canonical.Value) (string, error) {
+	if raw == nil || raw.Kind != canonical.Object {
+		return "", errors.New("a projection self-hash needs an object")
+	}
+	out := &canonical.Value{Kind: canonical.Object}
+	for _, m := range raw.Members {
+		if m.Key == "projection_sig" {
+			continue
+		}
+		out.Members = append(out.Members, m)
+	}
+	b, err := canonical.Canonicalize(out)
+	if err != nil {
+		return "", err
+	}
+	return canonical.Sha256Hex(b), nil
+}
 
 // Result is the outcome of the five receipt checks.
 type Result struct {
@@ -96,8 +120,28 @@ func VerifyParsed(r *Receipt, raw *canonical.Value, keys *KeySet) Result {
 		add("schema", Pass, "receipt v1, kind "+r.Kind)
 	}
 
+	pub, pubErr := DecodeKey(r.Issuer.PublicKey)
+
 	if r.Projected {
-		add("self_hash", Warn, "public projection: the sealed body is not present, so self_hash was not recomputed")
+		// Checks 2 and 3 for a projection are its own hash and signature (§11): the projection
+		// self-hash over every member but projection_sig, and projection_sig verified over it. So a
+		// genuine projection passes outright, and any altered field fails projection_signature.
+		hash, err := ProjectionSelfHash(raw)
+		switch {
+		case err != nil:
+			add("projection_self_hash", Fail, "could not canonicalize: "+err.Error())
+			add("projection_signature", Skip, "the projection self-hash could not be computed")
+		default:
+			add("projection_self_hash", Pass, hash)
+			switch {
+			case pubErr != nil:
+				add("projection_signature", Fail, "issuer public key: "+pubErr.Error())
+			case VerifyRaw(pub, hash, r.ProjectionSig):
+				add("projection_signature", Pass, "ed25519 by "+r.Issuer.KeyID)
+			default:
+				add("projection_signature", Fail, "projection_sig does not verify over the projection self-hash")
+			}
+		}
 	} else {
 		computed, err := canonical.SelfHash(raw)
 		switch {
@@ -108,23 +152,22 @@ func VerifyParsed(r *Receipt, raw *canonical.Value, keys *KeySet) Result {
 		default:
 			add("self_hash", Fail, "computed "+computed+", receipt says "+r.SelfHash)
 		}
-	}
 
-	issuerSigs := r.IssuerSignatures()
-	pub, pubErr := DecodeKey(r.Issuer.PublicKey)
-	switch {
-	case len(issuerSigs) == 0:
-		add("signature", Fail, "no issuer signature")
-	case len(issuerSigs) > 1:
-		add("signature", Fail, strconv.Itoa(len(issuerSigs))+" issuer signatures, expected exactly one")
-	case issuerSigs[0].KeyID != r.Issuer.KeyID:
-		add("signature", Fail, "signature key_id "+issuerSigs[0].KeyID+" is not the issuer's "+r.Issuer.KeyID)
-	case pubErr != nil:
-		add("signature", Fail, "issuer public key: "+pubErr.Error())
-	case VerifyRaw(pub, r.SelfHash, issuerSigs[0].Sig):
-		add("signature", Pass, "ed25519 by "+issuerSigs[0].KeyID)
-	default:
-		add("signature", Fail, "ed25519 signature by "+issuerSigs[0].KeyID+" does not verify over self_hash")
+		issuerSigs := r.IssuerSignatures()
+		switch {
+		case len(issuerSigs) == 0:
+			add("signature", Fail, "no issuer signature")
+		case len(issuerSigs) > 1:
+			add("signature", Fail, strconv.Itoa(len(issuerSigs))+" issuer signatures, expected exactly one")
+		case issuerSigs[0].KeyID != r.Issuer.KeyID:
+			add("signature", Fail, "signature key_id "+issuerSigs[0].KeyID+" is not the issuer's "+r.Issuer.KeyID)
+		case pubErr != nil:
+			add("signature", Fail, "issuer public key: "+pubErr.Error())
+		case VerifyRaw(pub, r.SelfHash, issuerSigs[0].Sig):
+			add("signature", Pass, "ed25519 by "+issuerSigs[0].KeyID)
+		default:
+			add("signature", Fail, "ed25519 signature by "+issuerSigs[0].KeyID+" does not verify over self_hash")
+		}
 	}
 
 	switch pinned, ok := keys.Lookup(PurposeReceipt, r.Issuer.KeyID); {

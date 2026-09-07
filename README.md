@@ -140,8 +140,8 @@ adds the re-fetch of every cited URL that has a recorded content hash.
 | # | check | pass | fail | warn | skip |
 |---|---|---|---|---|---|
 | 1 | `schema` | strict receipt v1 (§4), else strict projection (§11) | not JSON, a duplicate key, a member missing, unknown or misshapen — `detail` names the path | — | — |
-| 2 | `self_hash` | recomputed canonical hash equals the stated one | it does not | a projection: the sealed body is not present | schema failed |
-| 3 | `signature` | exactly one `issuer` signature, by `issuer.key_id`, verifying under the embedded key | none, several, wrong key id, or it does not verify | — | schema failed |
+| 2 | `self_hash` / `projection_self_hash` | receipt: recomputed canonical hash equals the stated one. projection: its own hash (§11), over every member but `projection_sig`, is recomputed and reported | receipt: it does not | — | schema failed |
+| 3 | `signature` / `projection_signature` | receipt: exactly one `issuer` signature, by `issuer.key_id`, verifying under the embedded key over `self_hash`. projection: `projection_sig` verifies under the embedded key over the projection hash — so a genuine projection passes outright, and any altered field fails here | none, several, wrong key id, or it does not verify | — | schema failed |
 | 4 | `key_pinned` | the pinned set has that key id with the same bytes | same id, different bytes; or a broken pin | key id not in the pinned set | no pinned set at all; schema failed |
 | 5 | `chain_fields` | chained: `seq` ≥ 1 and hex `prev_hash` | chained without them, unchained with them | — | unchained receipt: not anchored to the public chain |
 | 6 | `root_schema`, `root_self_hash`, `root_signature` | the root file parses, hashes and verifies under the pinned root key | it does not (an unpinned root key is a failure: the file carries no key) | — | with `--root` only |
@@ -217,9 +217,10 @@ under `--refetch`.
 
 Prints the receipt's public projection (§11): the same file with every cited URL reduced to its
 registrable domain and the archive links removed — what the issuer shows at `/r/<id>` — so you can
-see exactly what is public about a receipt before forwarding it. A projection still verifies
-(`self_hash` is a warning, since the body is not present), so it can be checked by someone who
-was never given the receipt itself.
+see exactly what is public about a receipt before forwarding it. The projection the issuer serves
+is signed (`projection_sig`) and verifies on its own, so it can be checked by someone who was never
+given the receipt itself. `show` only reads a receipt, so what it prints has no signature of its
+own; it is a preview, not a verifiable artifact.
 
 ### `keygen` and `countersign`
 

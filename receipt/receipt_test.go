@@ -61,7 +61,11 @@ func expect(t *testing.T, name string, res receipt.Result, want map[string]strin
 	if len(res.Checks) != 5 {
 		t.Errorf("%s: %d checks, want 5", name, len(res.Checks))
 	}
-	for i, n := range receipt.CheckNames {
+	names := receipt.CheckNames
+	if res.Receipt != nil && res.Receipt.Projected {
+		names = receipt.ProjectionCheckNames
+	}
+	for i, n := range names {
 		if i < len(res.Checks) && res.Checks[i].Name != n {
 			t.Errorf("%s: check %d is %s, want %s", name, i, res.Checks[i].Name, n)
 		}
@@ -183,15 +187,18 @@ func TestProjection(t *testing.T) {
 	vec := vector(t, "receipt.json")
 	keys := keySet(t, vec.Get("key"))
 	res := receipt.Verify(pretty(t, vec.Get("projection")), keys)
-	expect(t, "projection", res, map[string]string{"schema": "pass", "self_hash": "warn", "signature": "pass", "key_pinned": "pass", "chain_fields": "pass"})
-	if !res.OK() || receipt.ExitCode(res.Checks) != 2 || res.Receipt == nil || !res.Receipt.Projected {
+	// A projection is signed in its own right, so it passes outright (exit 0), with checks 2 and 3
+	// its own hash and signature rather than the receipt's.
+	expect(t, "projection", res, map[string]string{"schema": "pass", "projection_self_hash": "pass", "projection_signature": "pass", "key_pinned": "pass", "chain_fields": "pass"})
+	if !res.OK() || receipt.ExitCode(res.Checks) != 0 || res.Receipt == nil || !res.Receipt.Projected {
 		t.Fatalf("projection: ok=%v exit=%d receipt=%v", res.OK(), receipt.ExitCode(res.Checks), res.Receipt)
 	}
 	if d := res.Receipt.Claims[0].Locator.Domain; d == nil || *d != "example.org" {
 		t.Errorf("projected domain: %v", d)
 	}
 
-	// Our own projection of the receipt is byte-for-byte the vector's.
+	// Our own projection of the receipt is the vector's projection minus its projection_sig: show
+	// cannot sign, so the derived view carries every other member but not the signature.
 	r, raw, err := receipt.Parse(pretty(t, vec.Get("receipt")))
 	if err != nil {
 		t.Fatal(err)
@@ -201,15 +208,34 @@ func TestProjection(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, _ := canonical.Canonicalize(proj)
-	want, _ := canonical.Canonicalize(vec.Get("projection"))
+	withoutSig := &canonical.Value{Kind: canonical.Object}
+	for _, m := range vec.Get("projection").Members {
+		if m.Key == "projection_sig" {
+			continue
+		}
+		withoutSig.Members = append(withoutSig.Members, m)
+	}
+	want, _ := canonical.Canonicalize(withoutSig)
 	if string(got) != string(want) {
 		t.Errorf("projection differs:\n got %s\nwant %s", got, want)
 	}
-	// A projection projects to itself.
+	// A projection projects to itself, projection_sig kept.
 	again, _ := receipt.Project(res.Receipt, res.Raw)
 	got2, _ := canonical.Canonicalize(again)
-	if string(got2) != string(want) {
+	wantSigned, _ := canonical.Canonicalize(vec.Get("projection"))
+	if string(got2) != string(wantSigned) {
 		t.Error("projection of a projection changed")
+	}
+
+	// The vector's rewritten projection — a count and a verdict changed, signatures left intact —
+	// fails projection_signature, the check that binds the visible fields.
+	tv := vec.Get("projection_tampered")
+	res = receipt.Verify(pretty(t, tv.Get("receipt")), keys)
+	if res.OK() {
+		t.Error("tampered projection verified")
+	}
+	if ff := receipt.FirstFailure(res.Checks); ff == nil || ff.Name != tv.Get("first_failure").Str {
+		t.Errorf("tampered projection first_failure %v, want %s", ff, tv.Get("first_failure").Str)
 	}
 }
 

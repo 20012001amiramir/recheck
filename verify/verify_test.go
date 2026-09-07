@@ -95,7 +95,7 @@ func TestReceiptOnly(t *testing.T) {
 		t.Errorf("best-effort info: %+v", rep.Receipt)
 	}
 	rep = verify.Run(pretty(t, vec.Get("projection")), verify.Options{Keys: keys(t, vec.Get("key"))})
-	if !rep.OK || rep.Exit != 2 {
+	if !rep.OK || rep.Exit != 0 {
 		t.Errorf("projection: %+v", rep)
 	}
 }

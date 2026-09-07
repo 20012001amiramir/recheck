@@ -398,11 +398,31 @@ verifier treats all of them as opaque hex64 values.
 | `quote_hmac` | hex64 or null |
 | `doc_span` | span — where the claim sits in the extracted text |
 | `locator` | object, §4.7 |
+| `source_of` | `"body"` or `"list"` — which of the two kinds of claim this is |
 | `level` | `"EXISTS"` or `"SAYS"` — how far the check went |
 | `exists` | object, §4.8.1 |
 | `says` | object, §4.8.2 |
 | `refutation_attempted` | boolean |
 | `dissent` | the literal `null` — always; an adversarial second opinion never reaches a sealed receipt |
+
+A claim is a passage of the document that leans on an outside source, and there are two kinds.
+`source_of` says which.
+
+`"body"` is a sentence, or a short contiguous passage, that cites a source — by printing its
+identifier, or through a marker the document's own lists answer.
+
+`"list"` is an entry of one of the document's citation lists that no passage cites. Every such list
+counts, wherever the document puts it: the section headed References, Bibliography, Works Cited or
+the like; the footnotes or endnotes that carry the full citations; a table of authorities; and a
+list of publications an author sets out as their own work, a curriculum vitae attached to the
+document included. Each is the document's statement of what it rests on, so each entry is resolved
+and fetched like any other claim. An entry that some passage does cite is not repeated as a claim
+of its own: it is checked through the passage that cites it, which is a `"body"` claim.
+
+A `"list"` claim attributes no words to its source, so it carries `quote_hmac: null` and
+`level: "EXISTS"`; its `doc_span` covers the entry where it is printed. Beyond that the two are
+checked the same way, and a verifier need not tell them apart: `source_of` is there so a reader can
+be told "five cited claims and a hundred and forty-four listed sources" rather than one flat tally.
 
 ### 4.7 `locator`
 
@@ -433,21 +453,49 @@ Discriminated on `type`:
 | `retrievers` | array ≤ 8 of retriever objects, §4.8.3 |
 | `retriever_disagreement` | boolean — two retrievers fetched different bytes |
 | `single_retriever` | boolean — only one vantage answered |
-| `registry` | object `{ agency: token(32), status: integer 0…999 }` or null — the registry consulted for a doi/pmid/case locator and what it answered |
+| `registry` | object `{ agency: token(32), status: integer 0…999, method: token(16) or null }` or null — the registry consulted for a doi/pmid/case locator, what it answered, and how it was asked |
 | `archive_url` | http-url or null |
 | `archive_status` | `"archived"`, `"requested"`, `"failed"` or `"skipped"` |
 | `archive_job_id` | archive-job or null |
+
+`method` names the call that answered, for a registry that can be asked in more than one way.
+The case registry has two: `"lookup"` is the exact citation lookup, which needs a credential and
+answers about the citation itself; `"search"` is the open search, which needs none and answers with
+the records that carry the citation. A search confirmation is `200` only when exactly one record
+prints the citation asked about, matched on spacing and case alike; two such records is `300`
+(ambiguous), and none is `404` when the page the registry returned was its whole answer. When
+records were left unreturned behind that page the registry has settled nothing, and the answer is
+recorded as `200` with no URL — which rule 3 below reads as `SOURCE_UNREACHABLE`, never as "does not
+exist". A registry with only one way of being asked writes `null`.
 
 `verdict` values:
 
 | value | meaning |
 |---|---|
-| `RESOLVED` | the source was reached and its content read |
-| `RESOLVED_NO_ACCESS` | the source exists and answered, but its content could not be read (paywall, login, 403) |
-| `NOT_FOUND` | the registry says the identifier does not exist — a DOI the resolver 404s, a PMID absent from the index, a citation lookup that 404s |
-| `SOURCE_UNREACHABLE` | the network did not answer, or answered 5xx: nothing is known about the source either way |
+| `RESOLVED` | at least one retriever read a 2xx answer with a body; `content_sha256` and `bytes` cover the whole body even when it ran past the size kept for text (SAYS then reports `too_large`) |
+| `RESOLVED_NO_ACCESS` | the source exists and answered, but its content could not be read: 401, 402, 403, 407, 429 or 451 from the URL, or the case registry answering 300 (ambiguous) |
+| `NOT_FOUND` | the identifier or the URL does not exist: the registry answered 404 or 400, or the URL itself answered 404 or 410 — and neither retriever read a 2xx body |
+| `SOURCE_UNREACHABLE` | the network did not answer, answered 5xx, or the body never finished within the deadline — or there was no URL to fetch because the registry did not answer, refused the lookup (401, 403, 407, 429) or failed (5xx): nothing is known about the source either way |
 | `UNSUPPORTED_LOCATOR` | the citation is of a kind the engine cannot resolve; its locator is `unsupported` |
 
+How the engine decides, in order — every input is a field beside the verdict, so a reader can
+re-derive it:
+
+1. the locator is `unsupported` → `UNSUPPORTED_LOCATOR`;
+2. the registry answered 404 or 400 and neither retriever read a 2xx body → `NOT_FOUND`; the
+   registry answered 300 and neither did → `RESOLVED_NO_ACCESS`;
+3. there was nothing to fetch (the registry gave no URL) and rule 2 did not apply →
+   `SOURCE_UNREACHABLE`: the registry did not answer, refused the lookup (401, 403, 407, 429),
+   failed (5xx), or answered without a page to read. A refusal is a fact about the lookup, not
+   about the source; the status stays beside the verdict in `registry`;
+4. either retriever read a 2xx body → `RESOLVED`, whatever the registry said (its answer stays
+   beside the verdict in `registry`);
+5. otherwise the URL's own status decides: 401/402/403/407/429/451 → `RESOLVED_NO_ACCESS`;
+   404/410 → `NOT_FOUND`; anything else, no answer and 5xx included → `SOURCE_UNREACHABLE`.
+
+So a registry 404 alone makes `NOT_FOUND` only when neither retriever read the page: what was read
+outranks what the registry said. Only a registry answer of 404 or 400 ever makes `NOT_FOUND`: a
+registry that refuses or rate-limits the lookup has said nothing about the identifier.
 `NOT_FOUND` and `SOURCE_UNREACHABLE` are different facts about different parties and are never
 merged.
 
@@ -456,7 +504,7 @@ merged.
 | member | rule |
 |---|---|
 | `verdict` | `"MATCH"`, `"DRIFT"`, `"NOT_FOUND"` or `"NOT_RUN"` |
-| `reason` | token(48) or null — why, when `NOT_RUN` (for example `no_source_text`, `unsupported_locator`); not a closed list in version 1 |
+| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
 | `quoted_span` | span or null — where in the source text the match was found |
 | `match_kind` | `"exact"`, `"overlap"` or null |
 | `overlap_bp` | bp or null — how much of the quote the source carries, in basis points |
@@ -476,13 +524,22 @@ it was found between `drift_min_bp` and `match_bp`; `NOT_FOUND` means nothing at
 
 ### 4.9 `counts`
 
-Eleven integers ≥ 0: `claims`, `resolved`, `no_access`, `not_found`, `unreachable`, `unsupported`,
-`says_match`, `says_drift`, `says_not_found`, `says_not_run`, `holds_attempted`. They are the
-issuer's tallies over `claims`: the five exists tallies (`resolved`, `no_access`, `not_found`,
-`unreachable`, `unsupported`) each count the claims with that `exists.verdict` and sum to `claims`;
-the four says tallies do the same for `says.verdict`; `holds_attempted` counts the claims with
-`refutation_attempted` true. They are inside the hashed body, so they cannot be altered without
-failing `self_hash`; a version 1 verifier does not cross-check them against the claims.
+Twelve integers ≥ 0: `claims`, `not_checked`, `resolved`, `no_access`, `not_found`, `unreachable`,
+`unsupported`, `says_match`, `says_drift`, `says_not_found`, `says_not_run`, `holds_attempted`.
+All but `not_checked` are the issuer's tallies over `claims`: the five exists tallies (`resolved`,
+`no_access`, `not_found`, `unreachable`, `unsupported`) each count the claims with that
+`exists.verdict` and sum to `claims`; the four says tallies do the same for `says.verdict`;
+`holds_attempted` counts the claims with `refutation_attempted` true.
+
+`not_checked` is the one tally not derived from `claims`, and the only one that describes what the
+receipt leaves out: citations the engine found in the document — a cited passage, or an entry of one
+of its lists — and did not check, because a budget on how many claims one receipt may carry ran out.
+Zero means the receipt covers every citation the engine found. A receipt over the first four hundred
+entries of a six-hundred-entry bibliography says so here, and a reader who is not told this would
+have no way to know the difference.
+
+They are inside the hashed body, so they cannot be altered without failing `self_hash`; a version 1
+verifier does not cross-check them against the claims.
 
 ### 4.10 `models`
 
@@ -704,12 +761,25 @@ URL removed. The full receipt with its URLs is the creator's to download (that e
   gone.
 - Each `claims[i].exists` loses `final_url` and `archive_url`. Every other member stays, including
   `http_status`, hashes, `retrievers`, `registry`, `archive_status` and `archive_job_id`.
+- Every other member of a claim stays as it is, `source_of` and `level` included: neither can
+  identify the document, and without `source_of` a projection could not be read as "so many cited
+  claims and so many listed sources".
 - Everything else is byte-for-byte the receipt: `id`, `seq`, `prev_hash`, `issued_at`, `issuer`,
   `document`, `binding`, `counts`, `models`, `engine`, **`self_hash` and `signatures`**. A
-  projection carries the *receipt's* hash and signatures; it is a view of a receipt, not a document
-  that hashes to itself.
-- The server validates every projection against the projection schema at seal time, so a stored
-  projection always parses.
+  projection carries the *receipt's* hash and signatures so a holder of the full receipt can link
+  the two; it is a view of a receipt, not a document that hashes to itself.
+- A projection is **signed in its own right**. It carries one extra top-level member,
+  `projection_sig` (sig-b64, §4.1) — a member a sealed receipt never has, which is also what tells a
+  projection from a receipt. `projection_sig` is `ed25519(receipt key, projection-self-hash)`, where
+  the **projection self-hash** is `sha256` of the canonical bytes (§1) of the projection with only
+  its top-level `projection_sig` removed — every other member inside it, `self_hash` and
+  `signatures` among them. So the whole visible surface of a projection — its per-claim verdicts,
+  its counts, its hashes, its `http_status`, its domains and its `registry` — is bound by
+  `projection_sig`, not only by the receipt's `self_hash`. The signature is over the 32 raw bytes of
+  that hash, exactly as a receipt signature is over the 32 raw bytes of `self_hash` (§3), and it is
+  made with the same receipt key, so `issuer.public_key` verifies it.
+- The server validates and signs every projection at seal time, so a stored projection always parses
+  and always carries a valid `projection_sig`.
 
 `domain` (the `domain` shape of §4.1, or `null`):
 
@@ -730,9 +800,14 @@ not match the `domain` shape is `null`. So `https://www.example.org/reports/q1.p
 `null`. A verifier never needs to compute this; it is listed so the projection is fully specified.
 
 A verifier given a projection instead of a receipt (the JSON the public page serves) runs the
-same checks: check 1 recognises the projection shape, check 2 is `warn` because the body needed
-to recompute `self_hash` is not present, checks 3–5 run normally against the stated `self_hash`.
-The best such a run can conclude is that the issuer signed the stated hash — exit code 2, not 0.
+five checks with checks 2 and 3 taken over the projection itself: check 1 recognises the projection
+shape; check 2, `projection_self_hash`, recomputes the projection self-hash above and reports it;
+check 3, `projection_signature`, verifies `projection_sig` over that hash under `issuer.public_key`;
+checks 4 and 5 run as for a receipt. A genuine projection therefore passes outright — exit 0, the
+same as a receipt — and any altered field fails `projection_signature`, because the recomputed hash
+no longer matches what was signed. The sealed body with its cited URLs is still not present, so the
+receipt's own `self_hash` is not recomputed on a projection; it does not need to be, since
+`projection_sig` already binds every byte a projection carries.
 
 ## 12. Verifier checks and exit codes
 
@@ -742,11 +817,14 @@ inputs: a pinned key set (§13; the release build carries one), a root file and 
 The checks, in this order, each with a `name`, a `status` of `pass`, `fail`, `warn` or `skip`, and
 a free-form `detail`:
 
+A receipt and a projection run the same five checks; checks 2 and 3 differ only in what they are
+taken over. The names below are for a receipt, with the projection's name after the slash.
+
 | # | name | pass | fail | warn | skip |
 |---|---|---|---|---|---|
 | 1 | `schema` | see below | see below; `detail` names the first offending path | — | — |
-| 2 | `self_hash` | §2 recomputed over the receipt equals its `self_hash` | it does not | input is a projection: the body is not present, nothing recomputed | schema failed |
-| 3 | `signature` | exactly one `"issuer"` entry, whose `key_id` equals `issuer.key_id` and whose `sig` verifies under `issuer.public_key` over `self_hash` | no `"issuer"` entry; more than one; its `key_id` differs from `issuer.key_id`; or the signature does not verify | — | schema failed |
+| 2 | `self_hash` / `projection_self_hash` | receipt: §2 recomputed equals its `self_hash`. projection: the projection self-hash (§11) is recomputed and reported — it is `pass` for any schema-valid projection, since a projection carries no stored copy of this hash to compare against; check 3 is what it is verified through | receipt: the recomputed hash does not equal `self_hash` | — | schema failed |
+| 3 | `signature` / `projection_signature` | receipt: exactly one `"issuer"` entry, whose `key_id` equals `issuer.key_id` and whose `sig` verifies under `issuer.public_key` over `self_hash`. projection: `projection_sig` verifies under `issuer.public_key` over the projection self-hash of check 2 | receipt: no `"issuer"` entry; more than one; its `key_id` differs from `issuer.key_id`; or the signature does not verify. projection: `projection_sig` does not verify over the recomputed hash — so any altered field fails here | — | schema failed |
 | 4 | `key_pinned` | the pinned set has `issuer.key_id`, and its 32 decoded key bytes equal the 32 decoded bytes of `issuer.public_key` | the pinned set has `issuer.key_id` with *different* bytes — someone signed under the issuer's key id with a key of their own; or the pinned entry itself is not canonical base64 of 32 bytes | `issuer.key_id` is not in the pinned set — perhaps a key newer than this verifier | no pinned set was supplied; schema failed |
 | 5 | `chain_fields` | kind `"exhibitb.receipt"` with integer `seq` ≥ 1 and hex64 `prev_hash` | a chained receipt missing either; an unchained one carrying either | — | kind `"exhibitb.receipt.unchained"` with both `null`; schema failed |
 
@@ -756,17 +834,18 @@ must be an object; then the value is matched against the **receipt schema first*
 if that fails, against the **projection schema** (§11); if neither matches, `detail` names the
 first path the receipt schema rejected. Finally every string in the matched value must be
 canonicalizable (§1.1): an unpaired surrogate anywhere is a `schema` failure with `detail`
-`unpaired surrogate at <path>`. After a `schema` failure checks 2–5 are all reported as `skip`.
+`unpaired surrogate at <path>`. After a `schema` failure checks 2–5 are all reported as `skip`,
+under the receipt names.
 
 Every other check runs regardless of earlier failures, so the report is complete;
 `first_failure` is the name of the first check whose status is `fail`, or `null`. `ok` is true
 when no check failed. A `warn` never makes `ok` false.
 
 Check 3 verifies against the key *embedded* in the receipt on purpose: it establishes that the
-document is internally consistent, and check 4 then establishes whether that key is the issuer's.
-Reporting them separately is what lets a verifier say "well-formed and signed, but not by a key I
-know" rather than merely "bad". Keys are compared as bytes in check 4; since every key in this
-format has exactly one canonical spelling (§3), comparing the strings gives the same answer for
+document (or projection) is internally consistent, and check 4 then establishes whether that key is
+the issuer's. Reporting them separately is what lets a verifier say "well-formed and signed, but not
+by a key I know" rather than merely "bad". Keys are compared as bytes in check 4; since every key in
+this format has exactly one canonical spelling (§3), comparing the strings gives the same answer for
 any input that reached check 4.
 
 When a proof and root file are supplied, the verifier additionally reports `root_schema`,
@@ -781,7 +860,7 @@ Exit codes:
 |---|---|
 | 0 | every check is `pass` or `skip` |
 | 1 | at least one check is `fail` |
-| 2 | no check failed, but at least one is `warn`: the verifier could not establish everything — a projection's hash was not recomputed, a key is not pinned, a proof is still pending |
+| 2 | no check failed, but at least one is `warn`: the verifier could not establish everything — a key is not pinned, a changed or unreachable source, a proof is still pending |
 | 64 | usage: unrecognised flags, a missing or unreadable input file. A file that reads but is not a receipt is exit 1 with `first_failure` `schema`, not 64 |
 
 Machine output, when requested, is `{"ok", "checks": [{"name", "status", "detail"}], "first_failure"}`
@@ -884,7 +963,8 @@ each audit path is what §10's `PATH` produces, and that each proof verifies aga
   "receipt":          a sealed chained receipt (seq 1, prev_hash = genesis),
   "self_hash":        its self_hash,
   "canonical_sha256": sha256 of its full canonical bytes, self_hash and signatures included,
-  "projection":       its public projection (§11),
+  "projection":       its public projection (§11), signed with projection_sig,
+  "projection_tampered": {"name", "first_failure", "receipt"} — a projection an attacker rewrote,
   "unchained":        {"receipt", "self_hash"} — the same body issued unchained,
   "tampered":         [{"name", "first_failure", "receipt"}, ×5]
 }
@@ -893,8 +973,12 @@ each audit path is what §10's `PATH` produces, and that each proof verifies aga
 With `key` as the pinned set: `receipt` must pass all five checks (exit 0);
 `self_hash(receipt)` must equal `self_hash`; `sha256(canonical(receipt))` must equal
 `canonical_sha256` — the integrity check for a downloaded file, distinct from the hash that is
-signed. `projection` must pass with `self_hash` `warn` and everything else `pass` (exit 2).
-`unchained.receipt` must pass with `chain_fields` `skip` and hash to `unchained.self_hash`. Each
+signed. `projection` must pass all five checks (exit 0), with `projection_self_hash` and
+`projection_signature` in place of `self_hash` and `signature`. `projection_tampered.receipt` — the
+same projection with a count and a verdict rewritten while `self_hash`, `signatures` and
+`projection_sig` are left byte-identical — must have `ok` false and `first_failure`
+`projection_signature`. `unchained.receipt` must pass with `chain_fields` `skip` and hash to
+`unchained.self_hash`. Each
 `tampered[i].receipt` must have `ok` false and `first_failure` equal to
 `tampered[i].first_failure`, with checks 2–5 `skip` whenever that is `schema`:
 
