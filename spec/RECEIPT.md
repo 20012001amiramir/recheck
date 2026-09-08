@@ -521,14 +521,15 @@ reads as `null`.
 | `registry_budget` | the check's budget of calls to the case registry was spent before this citation could be asked: nothing was asked, and nothing is known; `status` is `0`, `method` the way it would have been asked |
 
 The name the document printed is compared, and searched for, only when it was read with
-confidence: from the clause the citation is in — no sentence boundary, and no `See`, `cf.`,
-`accord` or the like, between the name and the citation — in a recognised form (`X v. Y`; `In re
-X`, `Ex parte X`, `Matter of X`, `Estate of X`; `State`, `People`, `Commonwealth` or `United
-States v. X`), with a word that distinguishes a party on each side, or a side that names only a
-kind of party, and nothing but commas, brackets and a docket number between the name and the
-citation. A name read any other way — a capitalised word before a bare citation, the parties of
-the previous sentence — is no name: `name_check` is `"not_run"`, no search by name runs, and the
-citation stands on its own. Only a confident read that shares no party and is no near miss is a
+confidence: from the clause the citation is in — nothing between the name and the citation that
+ends a clause, which is a sentence boundary, the `;` of a string cite, a paragraph break, or a
+`See`, `cf.`, `accord` or the like — in a recognised form (`X v. Y`; `In re X`, `Ex parte X`,
+`Matter of X`, `Estate of X`; `State`, `People`, `Commonwealth` or `United States v. X`), with a
+word that distinguishes a party on each side, or a side that names only a kind of party, and
+nothing but commas, brackets and a docket number between the name and the citation. A name read
+any other way — a capitalised word before a bare citation, the parties of the previous sentence,
+the parties of the authority before the `;` — is no name: `name_check` is `"not_run"`, no search
+by name runs, and the citation stands on its own. Only a confident read that shares no party and is no near miss is a
 `"mismatch"`.
 
 The coverage rule, for a double miss to be an absence (`404`), every condition in this order: the
