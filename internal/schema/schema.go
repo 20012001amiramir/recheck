@@ -513,6 +513,61 @@ func (o *Object) SpanOrNull(name string) *[2]int64 {
 	return &s
 }
 
+// ── the compatibility rule (§15) ──────────────────────────────────────────
+
+// EnumOr is Enum for a member the compatibility rule lets a body omit (spec §15): def when it is
+// absent, the usual check when it is present.
+func (o *Object) EnumOr(name, def string, allowed ...string) string {
+	if _, m := o.Optional(name); m == nil {
+		return def
+	}
+	return o.Enum(name, allowed...)
+}
+
+// IntOr is Int for a member the compatibility rule lets a body omit: def when it is absent.
+func (o *Object) IntOr(name string, def, min, max int64) int64 {
+	if _, m := o.Optional(name); m == nil {
+		return def
+	}
+	return o.Int(name, min, max)
+}
+
+// StrOrNullOr is StrOrNull for a member the compatibility rule lets a body omit: def when it is
+// absent, nil when it is null.
+func (o *Object) StrOrNullOr(name, def string, s Shape) *string {
+	if _, m := o.Optional(name); m == nil {
+		return &def
+	}
+	return o.StrOrNull(name, s)
+}
+
+var reSemverTriple = regexp.MustCompile(`\A([0-9]+)\.([0-9]+)\.([0-9]+)`)
+
+// SemverBefore reports whether version is below major.minor.patch on the numeric triple alone —
+// a pre-release or build suffix is ignored, so 0.1.0-rc.1 is before 0.2.0 and 0.2.0-rc.1 is not.
+// A string that is not a semver is not before anything: the Semver shape refuses it on its own.
+func SemverBefore(version string, major, minor, patch int64) bool {
+	m := reSemverTriple.FindStringSubmatch(version)
+	if m == nil {
+		return false
+	}
+	var got [3]int64
+	for i := range got {
+		n, err := strconv.ParseInt(m[i+1], 10, 64)
+		if err != nil {
+			return false
+		}
+		got[i] = n
+	}
+	want := [3]int64{major, minor, patch}
+	for i := range got {
+		if got[i] != want[i] {
+			return got[i] < want[i]
+		}
+	}
+	return false
+}
+
 // Path is the object's path.
 func (o *Object) Path() string { return o.path }
 

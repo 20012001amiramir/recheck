@@ -28,6 +28,8 @@ Sections:
 12. Verifier checks and exit codes
 13. Key pinning and `keys.json`
 14. Vectors
+15. Compatibility
+16. Known design notes
 
 ## 0. Conventions
 
@@ -398,7 +400,7 @@ verifier treats all of them as opaque hex64 values.
 | `quote_hmac` | hex64 or null |
 | `doc_span` | span — where the claim sits in the extracted text |
 | `locator` | object, §4.7 |
-| `source_of` | `"body"` or `"list"` — which of the two kinds of claim this is |
+| `source_of` | `"body"` or `"list"` — which of the two kinds of claim this is. Required from `engine.version` `0.2.0`; a `0.1.x` body may omit it and is read as `"body"` (§15) |
 | `level` | `"EXISTS"` or `"SAYS"` — how far the check went |
 | `exists` | object, §4.8.1 |
 | `says` | object, §4.8.2 |
@@ -466,7 +468,8 @@ prints the citation asked about, matched on spacing and case alike; two such rec
 (ambiguous), and none is `404` when the page the registry returned was its whole answer. When
 records were left unreturned behind that page the registry has settled nothing, and the answer is
 recorded as `200` with no URL — which rule 3 below reads as `SOURCE_UNREACHABLE`, never as "does not
-exist". A registry with only one way of being asked writes `null`.
+exist". A registry with only one way of being asked writes `null`. `method` is required from
+`engine.version` `0.2.0`; a `0.1.x` body may omit it and is read as `"lookup"` (§15).
 
 `verdict` values:
 
@@ -536,7 +539,8 @@ receipt leaves out: citations the engine found in the document — a cited passa
 of its lists — and did not check, because a budget on how many claims one receipt may carry ran out.
 Zero means the receipt covers every citation the engine found. A receipt over the first four hundred
 entries of a six-hundred-entry bibliography says so here, and a reader who is not told this would
-have no way to know the difference.
+have no way to know the difference. `not_checked` is required from `engine.version` `0.2.0`; a
+`0.1.x` body may omit it and is read as `0` (§15).
 
 They are inside the hashed body, so they cannot be altered without failing `self_hash`; a version 1
 verifier does not cross-check them against the claims.
@@ -550,7 +554,7 @@ Each entry is `{ role: token(24), model: model-id }`.
 | member | rule |
 |---|---|
 | `name` | the literal `"exhibitb"` |
-| `version` | semver |
+| `version` | semver — the engine that sealed the body. `0.2.0` is the version the format was finalized at; what a `0.1.x` body may omit is in §15 |
 | `normalize` | the literal `"norm@1"` — the text normalization the HMACs and spans were computed under |
 | `says_thresholds` | `{ match_bp: bp, drift_min_bp: bp }` — currently `10000` and `7500` |
 
@@ -619,8 +623,11 @@ day's receipts no longer hash to the stored root; `seq` is that root's `last_seq
 day). The server verifies signatures against the keys it has published for the `key_id`, never
 against the key embedded in the receipt, so a receipt cannot vouch for itself. The public answer
 is incremental — it trusts the prefix it walked before and checks only the receipts sealed since —
-and is cached for sixty seconds; a full walk from genesis runs nightly and replaces the cached
-answer, so an edit deep in the chain is reported publicly from the next nightly walk on.
+and is cached for sixty seconds. Rooted days are re-checked on every call: each rooted receipt is
+re-derived from its stored bytes and the day's Merkle root recomputed, so a rewrite of an
+already-rooted receipt is reported at once. A rewrite of a receipt in a day not yet rooted sits
+inside the trusted prefix and surfaces at the nightly replay, which walks from genesis; its answer
+is what the public endpoint serves from then on, until the head moves.
 
 Both answer JSON with `cache-control: no-store`.
 
@@ -779,7 +786,11 @@ URL removed. The full receipt with its URLs is the creator's to download (that e
   that hash, exactly as a receipt signature is over the 32 raw bytes of `self_hash` (§3), and it is
   made with the same receipt key, so `issuer.public_key` verifies it.
 - The server validates and signs every projection at seal time, so a stored projection always parses
-  and always carries a valid `projection_sig`.
+  and always carries a valid `projection_sig`. A projection stored before this signature existed is
+  re-projected from the sealed body and signed under the receipt's own key — once at boot, and
+  again on read should one have been missed — so every projection the issuer serves carries one.
+  A projection of a `0.1.x` body carries exactly what that body carries (§15): it omits what the
+  body omits.
 
 `domain` (the `domain` shape of §4.1, or `null`):
 
@@ -966,7 +977,9 @@ each audit path is what §10's `PATH` produces, and that each proof verifies aga
   "projection":       its public projection (§11), signed with projection_sig,
   "projection_tampered": {"name", "first_failure", "receipt"} — a projection an attacker rewrote,
   "unchained":        {"receipt", "self_hash"} — the same body issued unchained,
-  "tampered":         [{"name", "first_failure", "receipt"}, ×5]
+  "legacy":           {"name", "engine_version": "0.1.0", "receipt", "self_hash", "projection"}
+                      — a body sealed before the format was finalized (§15), and its projection,
+  "tampered":         [{"name", "first_failure", "receipt"}, ×6]
 }
 ```
 
@@ -978,7 +991,11 @@ signed. `projection` must pass all five checks (exit 0), with `projection_self_h
 same projection with a count and a verdict rewritten while `self_hash`, `signatures` and
 `projection_sig` are left byte-identical — must have `ok` false and `first_failure`
 `projection_signature`. `unchained.receipt` must pass with `chain_fields` `skip` and hash to
-`unchained.self_hash`. Each
+`unchained.self_hash`. `legacy.receipt` — sealed at `engine.version` `0.1.0` with no
+`claims[].source_of`, no `counts.not_checked` and no `registry.method` — must pass all five checks
+and hash to `legacy.self_hash`, and `legacy.projection` must pass all five as a projection: this is
+the case that catches a verifier which requires the three members regardless of the version, or
+which fills them in and so hashes a different body. Each
 `tampered[i].receipt` must have `ok` false and `first_failure` equal to
 `tampered[i].first_failure`, with checks 2–5 `skip` whenever that is `schema`:
 
@@ -991,7 +1008,10 @@ same projection with a count and a verdict rewritten while `self_hash`, `signatu
    which is the wrong answer;
 5. `claims[0].locator.url` carrying a literal U+00A0 (the character itself, not an escape) →
    `schema`, because U+00A0 is whitespace under the `http-url` shape (§0's `\s`). This is the case
-   that catches a regular-expression engine whose `\s` is ASCII only.
+   that catches a regular-expression engine whose `\s` is ASCII only;
+6. the valid receipt — `engine.version` `0.2.0` — with `claims[].source_of`, `counts.not_checked`
+   and `registry.method` removed → `schema`, at `$.claims[0].source_of` (§15). This is the case
+   that catches a verifier which extends the `0.1.x` allowance to every version.
 
 The exact `self_hash` and `canonical_sha256` values are in the file; the reference implementation
 reproduces `receipt` byte for byte from its own fixtures, and so must any other.
@@ -1025,3 +1045,50 @@ base64 of the DER PKCS#8 PrivateKeyInfo of the fixture key; `public_key` its raw
 the §3 form. A verifier needs only `public_key`; the private half is there so that the vectors can
 be regenerated and so that another implementation can produce signatures to compare against
 `receipt.json` and `root.json` — Ed25519 is deterministic, so they must be byte-identical.
+
+## 15. Compatibility
+
+The format was finalized at `engine.version` `0.2.0`. A body whose `engine.version` is `0.1.x` —
+anything below `0.2.0` by comparison of the numeric `major.minor.patch` triple, a pre-release or
+build suffix ignored — was sealed while the format was still being finalized and may omit three
+members. A verifier reads such a body as if it carried:
+
+| member | when absent, read as |
+|---|---|
+| `claims[].source_of` (§4.6) | `"body"` |
+| `counts.not_checked` (§4.9) | `0` |
+| `claims[].exists.registry.method` (§4.8.1) | `"lookup"` |
+
+Nothing else is relaxed: every other rule of §4 holds for a `0.1.x` body exactly as written, a
+member that is present must still match its shape, and an unknown member is still a `schema`
+failure. From `0.2.0` on all three are required, and a body at or above `0.2.0` that omits any of
+them fails `schema` at that path, `$.claims[0].source_of` first. The sealed bodies from before the
+line are immutable and must keep verifying; nothing sealed after it may lean on the exception. The
+rule is keyed on the sealed `engine.version` alone and applies to the receipt schema and the
+projection schema alike: a projection of a `0.1.x` receipt carries exactly what the body carries
+(§11), so it omits what the body omits.
+
+Nothing is ever written into a body to fill the gap. A verifier that re-serialises what it read
+must reproduce the absence, or its `self_hash` will not match — the read-as values above are for
+what a verifier reports, never for what it hashes. `spec/vectors/receipt.json` carries one such
+body with its projection under `legacy` (§14), and one copy at `0.2.0` with the same omissions
+that must fail.
+
+## 16. Known design notes
+
+Accepted for version 1, and written down so a later revision starts from the fact.
+
+- **No domain separation between the two signatures.** A receipt signature is ed25519 over the 32
+  raw bytes of the receipt's `self_hash` (§3); `projection_sig` is ed25519 over the 32 raw bytes of
+  the projection self-hash (§11). Both are made with the same receipt key, and both documents say
+  `kind: "exhibitb.receipt"`, so nothing in the signed bytes says which of the two a signature is
+  for. Cross-use fails today all the same: the two hashes are over different canonical texts (the
+  projection self-hash covers `self_hash`, `signatures` and the projected claims; the receipt body
+  carries the full locators and neither of those members), so a signature presented as the other
+  kind fails `signature` or `projection_signature` unless someone found a second preimage across
+  the two texts — and the strict schemas keep the two shapes apart before any cryptography runs: a
+  receipt carrying `projection_sig` fails `schema` with `$.projection_sig: unknown member`, a
+  projection without it with `$.projection_sig: missing member`. A future format version would
+  prefix the signed bytes with a context label per signature (or give the projection its own
+  `kind`); doing that now would move every signature and every vector for no change in what
+  verifies.

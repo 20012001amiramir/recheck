@@ -4,13 +4,36 @@
 // so the module installs globalThis.recheck instead of running the command line — the same path
 // a page takes through recheck.js. Run by `./build.sh smoke` after `./build.sh wasm`.
 //
-//   node wasm/check.js [recheck.wasm [wasm_exec.js]]     defaults: the files next to this script
+//   node wasm/check.js [recheck.wasm [wasm_exec.js]] [--check-stamp[=VERSION]]
+//                                                         defaults: the files next to this script
+//
+// --check-stamp insists the module's version is the one this checkout would stamp — VERSION when
+// given, else the tag on HEAD, else <npm/package.json version>+<short commit id>, exactly as
+// build.sh computes it — so a module built before the last commit is caught rather than shipped
+// under a stale id.
 
 const fs = require("fs");
 const path = require("path");
 
-const wasmPath = path.resolve(process.argv[2] || path.join(__dirname, "recheck.wasm"));
-const execPath = path.resolve(process.argv[3] || path.join(__dirname, "wasm_exec.js"));
+const args = process.argv.slice(2);
+const stampFlag = args.find((a) => a === "--check-stamp" || a.startsWith("--check-stamp="));
+const positional = args.filter((a) => a !== stampFlag);
+const wasmPath = path.resolve(positional[0] || path.join(__dirname, "recheck.wasm"));
+const execPath = path.resolve(positional[1] || path.join(__dirname, "wasm_exec.js"));
+
+function expectedStamp() {
+  const explicit = stampFlag && stampFlag.includes("=") ? stampFlag.slice(stampFlag.indexOf("=") + 1) : "";
+  if (explicit) return explicit;
+  const { execFileSync } = require("child_process");
+  const repo = path.join(__dirname, "..");
+  const git = (...argv) => execFileSync("git", argv, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  try {
+    return git("describe", "--tags", "--exact-match");
+  } catch {
+    const pkg = JSON.parse(fs.readFileSync(path.join(repo, "npm", "package.json"), "utf8"));
+    return `${pkg.version}+${git("rev-parse", "--short", "HEAD")}`;
+  }
+}
 
 globalThis.fs = fs;
 if (!globalThis.crypto) globalThis.crypto = require("crypto").webcrypto;
@@ -48,6 +71,10 @@ WebAssembly.instantiate(fs.readFileSync(wasmPath), go.importObject)
   .then((api) => {
     expect(api === globalThis.recheck, "__recheckReady to hand over globalThis.recheck");
     expect(typeof api.version === "string" && api.version !== "", "version to be a string");
+    if (stampFlag) {
+      const want = expectedStamp();
+      expect(api.version === want, `the module to be stamped ${want} (it says ${api.version}: rebuild it after committing)`);
+    }
 
     const pinnedOnly = JSON.parse(api.verify(receipt));
     const withKey = JSON.parse(api.verify(receipt, { keys }));

@@ -62,6 +62,8 @@ func fixtures(t *testing.T) map[string]string {
 	write("unchained.json", rv.Get("unchained").Get("receipt"))
 	write("tampered.json", rv.Get("tampered").Array[0].Get("receipt"))
 	write("surrogate.json", rv.Get("tampered").Array[3].Get("receipt"))
+	write("legacy.json", rv.Get("legacy").Get("receipt"))
+	write("legacy-projection.json", rv.Get("legacy").Get("projection"))
 	rootV := load("root.json")
 	write("root.json", rootV.Get("root_file"))
 	write("proof.json", rootV.Get("proofs").Array[0])
@@ -98,6 +100,8 @@ func TestVerifyExitCodes(t *testing.T) {
 		{"projection, its own signature checked", []string{"verify", f["projection.json"], "--keys", f["keys.json"], "--ascii"}, 0, "+ projection_signature"},
 		{"projection an attacker rewrote", []string{"verify", f["projection_tampered.json"], "--keys", f["keys.json"]}, 1, "projection_sig does not verify"},
 		{"unchained", []string{"verify", f["unchained.json"], "--keys", f["keys.json"]}, 0, "not anchored to the public chain"},
+		{"a body sealed before the format was finalized", []string{"verify", f["legacy.json"], "--keys", f["keys.json"]}, 0, "RESULT: PASS"},
+		{"its projection", []string{"verify", f["legacy-projection.json"], "--keys", f["keys.json"]}, 0, "RESULT: PASS"},
 		{"tampered", []string{"verify", f["tampered.json"], "--keys", f["keys.json"]}, 1, "RESULT: FAIL"},
 		{"lone surrogate", []string{"verify", f["surrogate.json"], "--keys", f["keys.json"]}, 1, "unpaired surrogate"},
 		{"root and proof for another receipt", []string{"verify", f["receipt.json"], "--keys", f["keys.json"], "--root", f["root.json"], "--proof", f["proof.json"]}, 1, "inclusion"},

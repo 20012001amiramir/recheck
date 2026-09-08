@@ -139,7 +139,7 @@ adds the re-fetch of every cited URL that has a recorded content hash.
 
 | # | check | pass | fail | warn | skip |
 |---|---|---|---|---|---|
-| 1 | `schema` | strict receipt v1 (§4), else strict projection (§11) | not JSON, a duplicate key, a member missing, unknown or misshapen — `detail` names the path | — | — |
+| 1 | `schema` | strict receipt v1 (§4), else strict projection (§11). A body whose `engine.version` is below `0.2.0` was sealed before the format was finalized and may omit `claims[].source_of`, `counts.not_checked` and `registry.method` (§15) | not JSON, a duplicate key, a member missing, unknown or misshapen — `detail` names the path | — | — |
 | 2 | `self_hash` / `projection_self_hash` | receipt: recomputed canonical hash equals the stated one. projection: its own hash (§11), over every member but `projection_sig`, is recomputed and reported | receipt: it does not | — | schema failed |
 | 3 | `signature` / `projection_signature` | receipt: exactly one `issuer` signature, by `issuer.key_id`, verifying under the embedded key over `self_hash`. projection: `projection_sig` verifies under the embedded key over the projection hash — so a genuine projection passes outright, and any altered field fails here | none, several, wrong key id, or it does not verify | — | schema failed |
 | 4 | `key_pinned` | the pinned set has that key id with the same bytes | same id, different bytes; or a broken pin | key id not in the pinned set | no pinned set at all; schema failed |
@@ -368,14 +368,17 @@ make all         # test, build, wasm, smoke
 
 The tests are offline and cover every vector: `canonical.json` and `selfhash.json`
 (canonicalisation, including the cases that must be refused), `receipt.json` (the valid receipt,
-its projection, an unchained receipt, and every tampered variant with the check it must fail),
-`merkle.json` and `root.json` (trees, audit paths, a root file with its proofs), `test-key.json`
-(the fixture key, used to reproduce the vector signatures byte for byte). `refetch` is tested
-against a local `httptest` server, `bind` against a bundle built in the test, the CLI through its
-`Main` function with every exit code. `make smoke` then runs the built binary and the npm wrapper
-on `receipt-valid.json` (exit 0 with the fixture key, 2 without, 1 for a tampered copy),
-`wasm/check.js` on the page's module, and `wasm/dump.js` on both modules, whose outputs must be
-identical.
+its projection, an unchained receipt, a receipt sealed before the format was finalized with its
+projection, and every tampered variant with the check it must fail), `merkle.json` and `root.json`
+(trees, audit paths, a root file with its proofs), `test-key.json` (the fixture key, used to
+reproduce the vector signatures byte for byte). `refetch` is tested against a local `httptest`
+server, `bind` against a bundle built in the test, the CLI through its `Main` function with every
+exit code. `make smoke` then runs the built binary and the npm wrapper on `receipt-valid.json`
+(exit 0 with the fixture key, 2 without, 1 for a tampered copy), `wasm/check.js` on the page's
+module, and `wasm/dump.js` on both modules, whose outputs must be identical; it also insists that
+the binary, the npm wrapper and the page's module are stamped with this checkout's version
+(`wasm/check.js --check-stamp`), so an artifact built before the last commit is caught rather than
+shipped under a stale id.
 
 `VERSION=v0.1.0 make release` stamps a version; by default it is the tag on `HEAD`, else
 `npm/package.json`'s version plus the short commit id. `GO_IMAGE` overrides the toolchain image.

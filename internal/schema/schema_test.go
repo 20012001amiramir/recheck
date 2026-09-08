@@ -112,3 +112,18 @@ func TestShapes(t *testing.T) {
 		t.Error("UTF16Len counts a surrogate pair as two units")
 	}
 }
+
+// The compatibility rule (§15) is keyed on the numeric triple: a pre-release or build suffix is
+// ignored, and a string that is not a semver is not before anything.
+func TestSemverBefore(t *testing.T) {
+	for _, v := range []string{"0.1.0", "0.1.9", "0.0.1", "0.1.0-rc.1", "0.1.0+build.7"} {
+		if !schema.SemverBefore(v, 0, 2, 0) {
+			t.Errorf("%s must be before 0.2.0", v)
+		}
+	}
+	for _, v := range []string{"0.2.0", "0.2.0-rc.1", "0.2.1", "0.10.0", "1.0.0", "nope", ""} {
+		if schema.SemverBefore(v, 0, 2, 0) {
+			t.Errorf("%s must not be before 0.2.0", v)
+		}
+	}
+}

@@ -239,6 +239,65 @@ func TestProjection(t *testing.T) {
 	}
 }
 
+func TestLegacyVector(t *testing.T) {
+	vec := vector(t, "receipt.json")
+	keys := keySet(t, vec.Get("key"))
+	leg := vec.Get("legacy")
+	if leg == nil {
+		t.Fatal("receipt.json carries no legacy vector")
+	}
+	// A body sealed at engine 0.1.0, before the format was finalized: no claims[].source_of, no
+	// counts.not_checked, no registry.method. It is immutable and must pass outright (§15).
+	res := receipt.Verify(pretty(t, leg.Get("receipt")), keys)
+	expect(t, "legacy receipt", res, map[string]string{"schema": "pass", "self_hash": "pass", "signature": "pass", "key_pinned": "pass", "chain_fields": "pass"})
+	if receipt.ExitCode(res.Checks) != 0 || res.Receipt == nil {
+		t.Fatalf("legacy receipt: exit %d %v", receipt.ExitCode(res.Checks), res.Checks)
+	}
+	if res.Receipt.Engine.Version != leg.Get("engine_version").Str || res.Receipt.SelfHash != leg.Get("self_hash").Str {
+		t.Errorf("legacy receipt: version %s, self_hash %s", res.Receipt.Engine.Version, res.Receipt.SelfHash)
+	}
+	// Read as the defaults, never written into the body: the hash above is over the bytes as they are.
+	if res.Receipt.Claims[0].SourceOf != "body" || res.Receipt.Counts.NotChecked != 0 {
+		t.Errorf("legacy defaults: source_of %q, not_checked %d", res.Receipt.Claims[0].SourceOf, res.Receipt.Counts.NotChecked)
+	}
+	if m := res.Receipt.Claims[1].Exists.Registry.Method; m == nil || *m != "lookup" {
+		t.Errorf("legacy registry.method: %v", m)
+	}
+	// Its projection carries exactly what the body carries, and passes as a projection.
+	res = receipt.Verify(pretty(t, leg.Get("projection")), keys)
+	expect(t, "legacy projection", res, map[string]string{"schema": "pass", "projection_self_hash": "pass", "projection_signature": "pass", "key_pinned": "pass", "chain_fields": "pass"})
+	if receipt.ExitCode(res.Checks) != 0 {
+		t.Errorf("legacy projection: exit %d %v", receipt.ExitCode(res.Checks), res.Checks)
+	}
+
+	// Nothing else is relaxed: a member that is present must still match its shape, and an
+	// unknown member is still refused.
+	src := string(pretty(t, leg.Get("receipt")))
+	for name, edited := range map[string]string{
+		"source_of present but not an enum": strings.Replace(src, `"level": "SAYS"`, `"source_of": "prose", "level": "SAYS"`, 1),
+		"not_checked present but negative":  strings.Replace(src, `"claims": 3,`, `"claims": 3, "not_checked": -1,`, 1),
+		"unknown member":                    strings.Replace(src, `"v": 1,`, `"v": 1, "extra": true,`, 1),
+	} {
+		if ff := receipt.FirstFailure(receipt.Verify([]byte(edited), keys).Checks); ff == nil || ff.Name != "schema" {
+			t.Errorf("%s: %v", name, ff)
+		}
+	}
+
+	// The same omissions in a body at 0.2.0 are a schema failure, at the first claim's source_of.
+	tv := vec.Get("tampered").Array[5]
+	res = receipt.Verify(pretty(t, tv.Get("receipt")), keys)
+	if ff := receipt.FirstFailure(res.Checks); ff == nil || ff.Name != "schema" || !strings.HasPrefix(ff.Detail, "$.claims[0].source_of:") {
+		t.Errorf("finalized format without its members: %v", ff)
+	}
+	// So is any version that is not below 0.2.0, however it is spelled.
+	for _, v := range []string{"0.2.0", "0.2.0-rc.1", "0.10.0", "1.0.0"} {
+		edited := strings.Replace(src, `"version": "0.1.0"`, `"version": "`+v+`"`, 1)
+		if ff := receipt.FirstFailure(receipt.Verify([]byte(edited), keys).Checks); ff == nil || ff.Name != "schema" {
+			t.Errorf("version %s must require the members: %v", v, ff)
+		}
+	}
+}
+
 func TestUnchained(t *testing.T) {
 	vec := vector(t, "receipt.json")
 	keys := keySet(t, vec.Get("key"))

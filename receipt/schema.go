@@ -70,9 +70,21 @@ func Hex64Shape(s string) bool { return schema.Hex64(s) == "" }
 // ReceiptIDShape reports whether s is a receipt id (eb_ plus 16 characters).
 func ReceiptIDShape(s string) bool { return schema.ReceiptID(s) == "" }
 
+// legacyFormat reports whether raw's engine.version is below 0.2.0, the version the format was
+// finalized at. Such a body was sealed while the format was still being finalized and may omit
+// claims[].source_of, counts.not_checked and registry.method (spec §15), read as "body", 0 and
+// "lookup"; from 0.2.0 on all three are required. Read off the raw value before validation, so the
+// rule can shape it; a version that is not a semver counts as current, and the shape rule then
+// refuses it in its turn.
+func legacyFormat(raw *canonical.Value) bool {
+	ver := raw.Get("engine").Get("version")
+	return ver != nil && ver.Kind == canonical.String && schema.SemverBefore(ver.Str, 0, 2, 0)
+}
+
 func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 	v := &schema.Validator{}
 	r := &Receipt{Projected: projected}
+	legacy := legacyFormat(raw)
 	o := v.Object("$", raw)
 	r.V = o.LiteralInt("v", 1)
 	r.Kind = o.Enum("kind", KindChained, KindUnchained)
@@ -106,12 +118,16 @@ func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 
 	claimsPath, claims := o.Array("claims", maxClaims)
 	for i, c := range claims {
-		r.Claims = append(r.Claims, validateClaim(v, claimsPath+"["+strconv.Itoa(i)+"]", c, projected))
+		r.Claims = append(r.Claims, validateClaim(v, claimsPath+"["+strconv.Itoa(i)+"]", c, projected, legacy))
 	}
 
 	cnt := o.Obj("counts")
 	r.Counts.Claims = cnt.Int("claims", 0, canonical.MaxSafeInteger)
-	r.Counts.NotChecked = cnt.Int("not_checked", 0, canonical.MaxSafeInteger)
+	if legacy {
+		r.Counts.NotChecked = cnt.IntOr("not_checked", 0, 0, canonical.MaxSafeInteger)
+	} else {
+		r.Counts.NotChecked = cnt.Int("not_checked", 0, canonical.MaxSafeInteger)
+	}
 	r.Counts.Resolved = cnt.Int("resolved", 0, canonical.MaxSafeInteger)
 	r.Counts.NoAccess = cnt.Int("no_access", 0, canonical.MaxSafeInteger)
 	r.Counts.NotFound = cnt.Int("not_found", 0, canonical.MaxSafeInteger)
@@ -167,7 +183,7 @@ func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 	return r, nil
 }
 
-func validateClaim(v *schema.Validator, path string, val *canonical.Value, projected bool) Claim {
+func validateClaim(v *schema.Validator, path string, val *canonical.Value, projected, legacy bool) Claim {
 	var c Claim
 	o := v.Object(path, val)
 	c.N = o.Int("n", 1, canonical.MaxSafeInteger)
@@ -200,7 +216,11 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 	}
 	loc.Done()
 
-	c.SourceOf = o.Enum("source_of", "body", "list")
+	if legacy {
+		c.SourceOf = o.EnumOr("source_of", "body", "body", "list")
+	} else {
+		c.SourceOf = o.Enum("source_of", "body", "list")
+	}
 	c.Level = o.Enum("level", "EXISTS", "SAYS")
 
 	ex := o.Obj("exists")
@@ -234,7 +254,12 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 	c.Exists.RetrieverDisagreement = ex.Boolean("retriever_disagreement")
 	c.Exists.SingleRetriever = ex.Boolean("single_retriever")
 	if reg := ex.ObjOrNull("registry"); reg != nil {
-		c.Exists.Registry = &Registry{Agency: reg.Str("agency", schema.Token(32)), Status: reg.Int("status", 0, 999), Method: reg.StrOrNull("method", schema.Token(16))}
+		c.Exists.Registry = &Registry{Agency: reg.Str("agency", schema.Token(32)), Status: reg.Int("status", 0, 999)}
+		if legacy {
+			c.Exists.Registry.Method = reg.StrOrNullOr("method", "lookup", schema.Token(16))
+		} else {
+			c.Exists.Registry.Method = reg.StrOrNull("method", schema.Token(16))
+		}
 		reg.Done()
 	}
 	if !projected {

@@ -41,6 +41,8 @@ const cases = [
   ["receipt minified", JSON.stringify(vec.receipt), { keys }],
   ["projection", text(vec.projection), { keys }],
   ["unchained", text(vec.unchained.receipt), { keys }],
+  ["legacy receipt (engine 0.1.0)", text(vec.legacy.receipt), { keys }],
+  ["legacy projection (engine 0.1.0)", text(vec.legacy.projection), { keys }],
   ["root and proof", receipt, { keys, root: rootFile, proof }],
   ["root and proof, root key not pinned", receipt, { keys: JSON.stringify([vec.key]), root: rootFile, proof }],
   ["proof only", receipt, { keys, proof }],

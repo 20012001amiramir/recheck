@@ -7,7 +7,8 @@
 #   ./build.sh release   linux/amd64, linux/arm64, darwin/arm64, windows/amd64 -> dist/
 #   ./build.sh wasm      wasm/recheck.wasm + wasm_exec.js, copied into npm/wasm/, plus the
 #                        spec/vectors/receipt-valid.json fixture the smoke test uses
-#   ./build.sh smoke     the native binary and the npm wrapper against the vectors (needs node)
+#   ./build.sh smoke     the native binary and the npm wrapper against the vectors (needs node);
+#                        every artifact must also be stamped with this checkout's version
 #   ./build.sh all       test, build, wasm, smoke
 #
 # GO_IMAGE and TINYGO_IMAGE override the toolchain images (golang:1.23.12-alpine, tinygo/tinygo:0.38.0);
@@ -129,6 +130,17 @@ expect_exit() {
   fi
 }
 
+# expect_stamp command...: the command must print "recheck $VERSION" — the version this checkout
+# stamps — so an artifact built before the last commit is caught here rather than shipped under a
+# stale id.
+expect_stamp() {
+  got="$("$@")" || got="(exit $?)"
+  if [ "$got" != "recheck $VERSION" ]; then
+    echo "smoke: '$*' says '$got', expected 'recheck $VERSION' — rebuild after committing" >&2
+    exit 1
+  fi
+}
+
 cmd_smoke() {
   set -- $(host_target)
   bin="dist/recheck${3:-}"
@@ -143,13 +155,17 @@ cmd_smoke() {
   expect_exit 1 "$bin" verify dist/receipt-tampered.json --keys spec/vectors/test-key.json
   echo "smoke: --help -> 0"
   expect_exit 0 "$bin" --help
+  echo "smoke: the binary is stamped with this checkout's version ($VERSION)"
+  expect_stamp "$bin" version
   if command -v node >/dev/null 2>&1; then
     echo "smoke: the npm wrapper -> 0, 2, 1"
     expect_exit 0 node npm/bin/exhibitb.js verify spec/vectors/receipt-valid.json --keys spec/vectors/test-key.json
     expect_exit 2 node npm/bin/exhibitb.js verify spec/vectors/receipt-valid.json
     expect_exit 1 node npm/bin/exhibitb.js verify dist/receipt-tampered.json --keys spec/vectors/test-key.json
-    echo "smoke: the browser API of the page's module -> 0"
-    expect_exit 0 node wasm/check.js
+    echo "smoke: the npm wrapper is stamped with this checkout's version ($VERSION)"
+    expect_stamp node npm/bin/exhibitb.js version
+    echo "smoke: the browser API of the page's module -> 0, stamped with this checkout's version"
+    expect_exit 0 node wasm/check.js --check-stamp="$VERSION"
     echo "smoke: the page's module and the npm package's answer alike on every vector"
     node wasm/dump.js wasm/recheck.wasm wasm/wasm_exec.js > dist/dump-page.json
     node wasm/dump.js npm/wasm/recheck.wasm npm/wasm/wasm_exec.js > dist/dump-npm.json
