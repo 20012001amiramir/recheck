@@ -74,8 +74,8 @@ func TestCaseCite(t *testing.T) {
 		"",
 		" 410 U.S. 113",
 		"410 U.S. 113 ",
-		"[2015] 2 Lloyd's Rep 12345678",         // over 30 characters
-		"12 " + strings.Repeat("A", 14) + " 34", // first reporter token longer than 13
+		"[2015] 2 Lloyd's Rep 12345678",              // over 30 characters
+		"12 " + strings.Repeat("A", 14) + " 34",      // first reporter token longer than 13
 		"12 Cal. " + strings.Repeat("A", 9) + " 345", // further reporter token longer than 8
 	}
 	for _, s := range reject {
