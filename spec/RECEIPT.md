@@ -465,10 +465,16 @@ The case registry has two: `"lookup"` is the exact citation lookup, which needs 
 answers about the citation itself; `"search"` is the open search, which needs none and answers with
 the records that carry the citation. A search confirmation is `200` only when exactly one record
 prints the citation asked about, matched on spacing and case alike; two such records is `300`
-(ambiguous), and none is `404` when the page the registry returned was its whole answer. When
-records were left unreturned behind that page the registry has settled nothing, and the answer is
-recorded as `200` with no URL — which rule 3 below reads as `SOURCE_UNREACHABLE`, never as "does not
-exist". A registry with only one way of being asked writes `null`. `method` is required from
+(ambiguous). No record printing the citation is a real absence (`404`) only when the page the
+registry returned was its whole answer **and** the citation's reporter is one the registry indexes
+comprehensively — the federal reporters and the regional and state reporters the engine names. A
+citation in any other reporter, or a neutral citation with no reporter token at all (`[2019] EWHC
+123`), the registry may simply not carry, so its silence is not a denial: the answer is recorded as
+`200` with no URL. So too when records were left unreturned behind the page, or the page never said
+how many matched at all. Each of these `200`-with-no-URL cases rule 3 below reads as
+`SOURCE_UNREACHABLE`, never as "does not exist" — an unindexed citation is never accused of not
+existing. The exact lookup applies the same coverage gate to its own `404`. A registry with only one
+way of being asked writes `null`. `method` is required from
 `engine.version` `0.2.0`; a `0.1.x` body may omit it and is read as `"lookup"` (§15).
 
 `verdict` values:
@@ -507,7 +513,7 @@ merged.
 | member | rule |
 |---|---|
 | `verdict` | `"MATCH"`, `"DRIFT"`, `"NOT_FOUND"` or `"NOT_RUN"` |
-| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
+| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_registry_text` (the case was confirmed only by the registry's open search, whose resolved page the registry guards behind a challenge, so no opinion text was available to run against), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
 | `quoted_span` | span or null — where in the source text the match was found |
 | `match_kind` | `"exact"`, `"overlap"` or null |
 | `overlap_bp` | bp or null — how much of the quote the source carries, in basis points |
