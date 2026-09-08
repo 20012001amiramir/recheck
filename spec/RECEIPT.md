@@ -329,7 +329,8 @@ Notes on the shapes:
   parentheses, `(1st)` to `(5th)`, as the Illinois public-domain form prints it
   (`2025 IL App (4th) 241427`). Then a page of one to six digits — which, in that Illinois form
   alone, may end in `-U`, the marker of an unpublished decision (`2025 IL App (4th) 240001-U`),
-  so the registry is asked for what the document printed. Exactly one whitespace character separates
+  so the registry is asked for what the document printed; the marker is carried in upper case
+  whichever case the document printed it in. Exactly one whitespace character separates
   tokens (the engine collapses runs before sealing). `123 S. Ct. 456`, `123 F. Supp. 2d 456`,
   `123 F.3d 456`, `12 Cal. App. 4th 345`, `12 N.Y.S.2d 34`, `[2020] UKSC 1`, `[2015] 2 Lloyd's Rep 123`
   all fit; a sentence that happens to start with a year and end with a number does not, and
