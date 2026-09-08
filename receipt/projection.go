@@ -74,8 +74,10 @@ func Domain(c *Claim) string {
 }
 
 // Project builds the public projection (§11) of a parsed receipt as a JSON value: every member
-// of the source in its original order, with each locator reduced to {type, domain} and each
-// exists losing final_url and archive_url. A projection projects to itself.
+// of the source in its original order, with each locator reduced to {type, domain}, each exists
+// losing final_url and archive_url, and its registry losing cluster_id — a registry's public
+// identifier of a record names the cited work as surely as the citation does. A projection
+// projects to itself.
 func Project(r *Receipt, raw *canonical.Value) (*canonical.Value, error) {
 	if r == nil || raw == nil || raw.Kind != canonical.Object {
 		return nil, errors.New("project: need a validated receipt")
@@ -93,6 +95,18 @@ func Project(r *Receipt, raw *canonical.Value) (*canonical.Value, error) {
 		out.Members = append(out.Members, canonical.Member{Key: m.Key, Value: claims})
 	}
 	return out, nil
+}
+
+// projectRegistry is the registry member without cluster_id, every other member in its order.
+func projectRegistry(raw *canonical.Value) *canonical.Value {
+	out := &canonical.Value{Kind: canonical.Object}
+	for _, m := range raw.Members {
+		if m.Key == "cluster_id" {
+			continue
+		}
+		out.Members = append(out.Members, m)
+	}
+	return out
 }
 
 func projectClaim(c *Claim, raw *canonical.Value) *canonical.Value {
@@ -113,6 +127,9 @@ func projectClaim(c *Claim, raw *canonical.Value) *canonical.Value {
 			for _, em := range m.Value.Members {
 				if em.Key == "final_url" || em.Key == "archive_url" {
 					continue
+				}
+				if em.Key == "registry" && em.Value.Kind == canonical.Object {
+					em = canonical.Member{Key: em.Key, Value: projectRegistry(em.Value)}
 				}
 				ex.Members = append(ex.Members, em)
 			}

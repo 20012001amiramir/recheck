@@ -239,6 +239,34 @@ func TestProjection(t *testing.T) {
 	}
 }
 
+func TestProjectionStripsClusterID(t *testing.T) {
+	vec := vector(t, "receipt.json")
+	keys := keySet(t, vec.Get("key"))
+	// Projecting a body whose registry names a record drops the identifier and keeps the tokens.
+	r, raw, err := receipt.Parse(edit(t, vec, []string{`"method": null`, `"method": "search", "reason": "citation_belongs_to_another_case", "name_check": "mismatch", "cluster_id": 853092`}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	proj, err := receipt.Project(r, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := canonical.Canonicalize(proj)
+	if strings.Contains(string(got), "cluster_id") || strings.Contains(string(got), "853092") {
+		t.Errorf("projection carries cluster_id: %s", got)
+	}
+	if !strings.Contains(string(got), `"name_check":"mismatch"`) || !strings.Contains(string(got), `"reason":"citation_belongs_to_another_case"`) {
+		t.Errorf("projection lost the registry's tokens: %s", got)
+	}
+	// A projection that carries one is not one this format makes.
+	src := strings.Replace(string(pretty(t, vec.Get("projection"))), `"method": null`, `"method": null, "cluster_id": 853092`, 1)
+	res := receipt.Verify([]byte(src), keys)
+	ff := receipt.FirstFailure(res.Checks)
+	if ff == nil || ff.Name != "schema" || !strings.HasPrefix(ff.Detail, "$.claims[1].exists.registry.cluster_id") {
+		t.Errorf("projection with cluster_id: %v", res.Checks)
+	}
+}
+
 func TestLegacyVector(t *testing.T) {
 	vec := vector(t, "receipt.json")
 	keys := keySet(t, vec.Get("key"))

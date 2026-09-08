@@ -500,7 +500,7 @@ reads as `null`.
 |---|---|
 | `reason` | token(48) or null — why the registry answered as it did, when `status` alone does not say; the values below, not a closed list in version 1 |
 | `name_check` | `"match"`, `"mismatch"`, `"uncertain"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), compared with accents, case and apostrophes folded away, matched whole or as a truncation of six letters or more on both sides (`Martine` for `Martinez`; never `Mata` for `Matamoros`). `"uncertain"` when they share none but are within a slip of each other — a distinguishing word of one within one edit (a letter inserted, dropped or changed, or two swapped) of a word of the other, five letters or more, or the distinguishing words of one all among the other's — and the record then stands as the source. `"not_run"` when the document printed no such word, or the registry no name at all |
-| `cluster_id` | integer ≥ 0 or null — the registry's public identifier of the record it answered with: the one confirmed, or the one found at the cited page in another case's name |
+| `cluster_id` | integer ≥ 0 or null — the registry's public identifier of the record it answered with: the one confirmed, or the one found at the cited page in another case's name. Sealed in the body only: a projection carries no `cluster_id` (§11) |
 
 `reason` values the engine writes:
 
@@ -853,8 +853,12 @@ URL removed. The full receipt with its URLs is the creator's to download (that e
 
 - Each `claims[i].locator` becomes `{"type", "domain"}` — the same `type`; `value` and `url` are
   gone.
-- Each `claims[i].exists` loses `final_url` and `archive_url`. Every other member stays, including
-  `http_status`, hashes, `retrievers`, `registry`, `archive_status` and `archive_job_id`.
+- Each `claims[i].exists` loses `final_url` and `archive_url`, and its `registry`, when it is the
+  case registry's, loses `cluster_id` (§4.8.1.1): a registry's public identifier of a record names
+  the cited work as surely as the citation does, and the set of them would be the document's table
+  of authorities. Every other member stays, including `http_status`, hashes, `retrievers`, the rest
+  of `registry` (`reason` and `name_check` are tokens that name no work), `archive_status` and
+  `archive_job_id`. A projection carrying `cluster_id` fails the schema.
 - Every other member of a claim stays as it is, `source_of` and `level` included: neither can
   identify the document, and without `source_of` a projection could not be read as "so many cited
   claims and so many listed sources".
