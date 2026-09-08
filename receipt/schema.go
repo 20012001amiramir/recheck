@@ -266,7 +266,7 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 			c.Exists.Registry.Reason = reg.StrOrNull("reason", schema.Token(48))
 		}
 		if _, m := reg.Optional("name_check"); m != nil {
-			c.Exists.Registry.NameCheck = reg.EnumOrNull("name_check", "match", "mismatch", "not_run")
+			c.Exists.Registry.NameCheck = reg.EnumOrNull("name_check", "match", "mismatch", "uncertain", "not_run")
 		}
 		if _, m := reg.Optional("cluster_id"); m != nil {
 			c.Exists.Registry.ClusterID = reg.IntOrNull("cluster_id", 0, canonical.MaxSafeInteger)

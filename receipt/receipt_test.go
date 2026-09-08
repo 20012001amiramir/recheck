@@ -548,6 +548,7 @@ func TestSchemaStrictness(t *testing.T) {
 		{"the case registry's members, present", [][]string{{`"method": null`, `"method": "name_search", "reason": "citation_not_indexed", "name_check": "match", "cluster_id": 10868210`}}},
 		{"the case registry's members, null", [][]string{{`"method": null`, `"method": "search", "reason": null, "name_check": null, "cluster_id": null`}}},
 		{"the case registry's members, some absent", [][]string{{`"method": null`, `"method": "search", "name_check": "mismatch"`}}},
+		{"the case registry's name_check uncertain", [][]string{{`"method": null`, `"method": "search", "name_check": "uncertain", "cluster_id": 7`}}},
 		{"neutral citation", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "[2019] EWHC 12"`}}},
 		{"law report citation, a volume after the year", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "[2010] 1 AC 123"`}}},
 		{"law report citation, two reporter tokens", [][]string{{`"type": "doi"`, `"type": "case"`}, {`"value": "10.1136/bmj.n1234"`, `"value": "[2020] 1 All ER 123"`}}},

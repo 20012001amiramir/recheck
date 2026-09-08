@@ -499,14 +499,14 @@ reads as `null`.
 | member | rule |
 |---|---|
 | `reason` | token(48) or null — why the registry answered as it did, when `status` alone does not say; the values below, not a closed list in version 1 |
-| `name_check` | `"match"`, `"mismatch"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), matched whole or as an abbreviation of four letters or more. `"not_run"` when the document printed no such word, or the registry no name at all |
+| `name_check` | `"match"`, `"mismatch"`, `"uncertain"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), compared with accents, case and apostrophes folded away, matched whole or as a truncation of six letters or more on both sides (`Martine` for `Martinez`; never `Mata` for `Matamoros`). `"uncertain"` when they share none but are within a slip of each other — a distinguishing word of one within one edit (a letter inserted, dropped or changed, or two swapped) of a word of the other, five letters or more, or the distinguishing words of one all among the other's — and the record then stands as the source. `"not_run"` when the document printed no such word, or the registry no name at all |
 | `cluster_id` | integer ≥ 0 or null — the registry's public identifier of the record it answered with: the one confirmed, or the one found at the cited page in another case's name |
 
 `reason` values the engine writes:
 
 | value | meaning |
 |---|---|
-| `citation_belongs_to_another_case` | the citation is real, and the record at that page shares no distinguishing party with the name the document printed: `name_check` is `"mismatch"`, `cluster_id` names the occupant, and the verdict is `NOT_FOUND` (rule 2) |
+| `citation_belongs_to_another_case` | the citation is real, and the record at that page shares no distinguishing party with the name the document printed and is no near miss of it: `name_check` is `"mismatch"`, `cluster_id` names the occupant, and the verdict is `NOT_FOUND` (rule 2) |
 | `citation_not_indexed` | the citation is not in the index; a search by name found exactly one record that shares a party with the cited name, falls within a year of the cited year, and prints no different citation in the same reporter: `method` is `"name_search"` and the record is the source |
 | `ambiguous` | two or more records could be the one meant — printing the citation, or answering to the name within the window — and rank is not evidence: `300` when they print the citation, `200` with no URL when found by name |
 | `court_mismatch` | the one record found by name sits in a court other than the one the citation names; `200` with no URL |
@@ -514,6 +514,17 @@ reads as `null`.
 | `reporter_not_covered` | a double miss — no record prints the citation and none answers to the name — in a reporter the registry does not index comprehensively, or a citation with no reporter token; `200` with no URL |
 | `volume_not_indexed` | a double miss in a volume the registry holds fewer than twenty records from: the volume is being filled, and its silence is not a denial; `200` with no URL |
 | `recent_volume` | a double miss on a citation the document dates within the last year, at the frontier of the index; `200` with no URL |
+
+The name the document printed is compared, and searched for, only when it was read with
+confidence: from the clause the citation is in — no sentence boundary, and no `See`, `cf.`,
+`accord` or the like, between the name and the citation — in a recognised form (`X v. Y`; `In re
+X`, `Ex parte X`, `Matter of X`, `Estate of X`; `State`, `People`, `Commonwealth` or `United
+States v. X`), with a word that distinguishes a party on each side, or a side that names only a
+kind of party, and nothing but commas, brackets and a docket number between the name and the
+citation. A name read any other way — a capitalised word before a bare citation, the parties of
+the previous sentence — is no name: `name_check` is `"not_run"`, no search by name runs, and the
+citation stands on its own. Only a confident read that shares no party and is no near miss is a
+`"mismatch"`.
 
 The coverage rule, for a double miss to be an absence (`404`): the page the registry returned was
 its whole answer; the citation's reporter is one the registry indexes comprehensively — the federal
