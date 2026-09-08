@@ -460,6 +460,14 @@ Discriminated on `type`:
 | `archive_status` | `"archived"`, `"requested"`, `"failed"` or `"skipped"` |
 | `archive_job_id` | archive-job or null |
 
+`content_sha256` and `bytes` are over the entity body as decoded: a body served under a
+`Content-Encoding` (gzip, deflate, br) is decoded before it is hashed and counted, by either
+vantage, so the two hashes are of the resource's own bytes and `retriever_disagreement` compares
+like with like. A body that decodes past the issuer's decompression ceiling is not read to its end
+— the fetch ends as the retriever error `too_large`, which is not the SAYS reason of the same name
+(§4.8.2: a body read and hashed whole, but past the size kept for text); the retriever then carries
+no `content_sha256` and does not count as having read the source.
+
 `method` names the call that answered, for a registry that can be asked in more than one way.
 The case registry has two: `"lookup"` is the exact citation lookup, which needs a credential and
 answers about the citation itself; `"search"` is the open search, which needs none and answers with
@@ -794,9 +802,11 @@ URL removed. The full receipt with its URLs is the creator's to download (that e
 - The server validates and signs every projection at seal time, so a stored projection always parses
   and always carries a valid `projection_sig`. A projection stored before this signature existed is
   re-projected from the sealed body and signed under the receipt's own key — once at boot, and
-  again on read should one have been missed — so every projection the issuer serves carries one.
-  A projection of a `0.1.x` body carries exactly what that body carries (§15): it omits what the
-  body omits.
+  again on read should one have been missed, on the receipt page as on the API route — so every
+  projection the issuer serves carries one, unless the key that signed the receipt is no longer on
+  the issuer's volume, in which case the stored projection is served as it is and the verifier
+  reports `schema`. A projection of a `0.1.x` body carries exactly what that body carries (§15): it
+  omits what the body omits.
 
 `domain` (the `domain` shape of §4.1, or `null`):
 
