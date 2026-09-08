@@ -67,11 +67,11 @@ type Binding struct {
 
 // Claim is §4.6.
 type Claim struct {
-	N                   int64
-	ClaimHMAC           string
-	QuoteHMAC           *string
-	DocSpan             [2]int64
-	Locator             Locator
+	N         int64
+	ClaimHMAC string
+	QuoteHMAC *string
+	DocSpan   [2]int64
+	Locator   Locator
 	// SourceOf is "body" or "list": which of the two kinds of claim this is (§4.6).
 	SourceOf            string
 	Level               string
