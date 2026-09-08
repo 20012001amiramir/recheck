@@ -295,11 +295,12 @@ token(N)       ^[a-z][a-z0-9_]*$             length ≤ N
 receipt-id     ^eb_[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}$
 doi-value      ^10\.\d{4,9}\/\S+$            length ≤ 200
 pmid-value     ^\d{1,9}$
-case-cite      one pattern, written here across four lines (it contains no literal whitespace):
-               ^(?:\d{1,4}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s(?:[A-Z0-9][A-Za-z0-9.]{0,7}|\([1-5](?:st|d|th)\))){0,2}
+case-cite      one pattern, written here across five lines (it contains no literal whitespace):
+               ^(?:(?:\d{1,4}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s(?:[A-Z0-9][A-Za-z0-9.]{0,7}|\([1-5](?:st|d|th)\))){0,2}
                  |\[\d{4}\]\s\d{1,3}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7})?
                  |\[\d{4}\]\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}
-               )\s\d{1,6}$                                                          length ≤ 30
+               )\s\d{1,6}
+                 |\d{4}\sIL\sApp\s\([1-5](?:st|d|th)\)\s\d{1,6}-U)$                          length ≤ 30
 retriever-id   ^[A-Za-z0-9_-]{1,16}$
 vantage        ^[a-z][a-z0-9_-]{0,23}$
 archive-job    ^[A-Za-z0-9_.:-]{1,80}$
@@ -326,7 +327,9 @@ Notes on the shapes:
   that only two reporter tokens may follow a year-plus-volume, which is what keeps every shape
   inside five tokens — and after a volume a further token may instead be a court district in
   parentheses, `(1st)` to `(5th)`, as the Illinois public-domain form prints it
-  (`2025 IL App (4th) 241427`). Then a page of one to six digits. Exactly one whitespace character separates
+  (`2025 IL App (4th) 241427`). Then a page of one to six digits — which, in that Illinois form
+  alone, may end in `-U`, the marker of an unpublished decision (`2025 IL App (4th) 240001-U`),
+  so the registry is asked for what the document printed. Exactly one whitespace character separates
   tokens (the engine collapses runs before sealing). `123 S. Ct. 456`, `123 F. Supp. 2d 456`,
   `123 F.3d 456`, `12 Cal. App. 4th 345`, `12 N.Y.S.2d 34`, `[2020] UKSC 1`, `[2015] 2 Lloyd's Rep 123`
   all fit; a sentence that happens to start with a year and end with a number does not, and
@@ -498,11 +501,11 @@ reads as `null`.
 
 | member | rule |
 |---|---|
-| `reason` | token(48) or null — why the registry answered as it did, when `status` alone does not say; the values below, not a closed list in version 1 |
+| `reason` | one of the values below, or null — why the registry answered as it did, when `status` alone does not say. A closed list: the engine writes no other value and a verifier refuses one; a new reason is a new version of this format |
 | `name_check` | `"match"`, `"mismatch"`, `"uncertain"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), compared with accents, case and apostrophes folded away, matched whole or as a truncation of six letters or more on both sides (`Martine` for `Martinez`; never `Mata` for `Matamoros`). `"uncertain"` when they share none but are within a slip of each other — a distinguishing word of one within one edit (a letter inserted, dropped or changed, or two swapped) of a word of the other, five letters or more, or the distinguishing words of one all among the other's — and the record then stands as the source. `"not_run"` when the document printed no such word, or the registry no name at all |
 | `cluster_id` | integer ≥ 0 or null — the registry's public identifier of the record it answered with: the one confirmed, or the one found at the cited page in another case's name. Sealed in the body only: a projection carries no `cluster_id` (§11) |
 
-`reason` values the engine writes:
+`reason` values, the whole list:
 
 | value | meaning |
 |---|---|

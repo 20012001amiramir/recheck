@@ -264,7 +264,7 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 		// a body sealed before they existed both pass; checked to their shape when present. A
 		// projection carries no cluster_id (§11): in one it is an unknown member, and Done says so.
 		if _, m := reg.Optional("reason"); m != nil {
-			c.Exists.Registry.Reason = reg.StrOrNull("reason", schema.Token(48))
+			c.Exists.Registry.Reason = reg.EnumOrNull("reason", "citation_belongs_to_another_case", "citation_not_indexed", "ambiguous", "court_mismatch", "citation_conflict", "reporter_not_covered", "volume_not_indexed", "recent_volume", "year_unreadable", "registry_budget")
 		}
 		if _, m := reg.Optional("name_check"); m != nil {
 			c.Exists.Registry.NameCheck = reg.EnumOrNull("name_check", "match", "mismatch", "uncertain", "not_run")

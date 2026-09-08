@@ -35,17 +35,19 @@ const JSWhitespace = `\t\n\x0B\f\r \x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2
 // reporter tokens (only two after a year-plus-volume, which keeps every shape inside five tokens)
 // and a page, with exactly one whitespace character between tokens. After a volume, a further
 // token may instead be a court district in parentheses, `(1st)` to `(5th)`, as the Illinois
-// public-domain form prints it.
+// public-domain form prints it; and that form alone may end its page in `-U`, the marker of an
+// unpublished decision.
 const (
-	caseWS       = `[` + JSWhitespace + `]`
-	caseReporter = `[A-Z][A-Za-z0-9.&'-]{0,12}`
-	caseMore     = caseWS + `[A-Z0-9][A-Za-z0-9.]{0,7}`
-	caseDistrict = caseWS + `\([1-5](?:st|d|th)\)`
-	casePattern  = `\A(?:` +
+	caseWS          = `[` + JSWhitespace + `]`
+	caseReporter    = `[A-Z][A-Za-z0-9.&'-]{0,12}`
+	caseMore        = caseWS + `[A-Z0-9][A-Za-z0-9.]{0,7}`
+	caseDistrict    = caseWS + `\([1-5](?:st|d|th)\)`
+	caseUnpublished = `[0-9]{4}` + caseWS + `IL` + caseWS + `App` + caseDistrict + caseWS + `[0-9]{1,6}-U`
+	casePattern     = `\A(?:(?:` +
 		`[0-9]{1,4}` + caseWS + caseReporter + `(?:` + caseMore + `|` + caseDistrict + `){0,2}` +
 		`|\[[0-9]{4}\]` + caseWS + `[0-9]{1,3}` + caseWS + caseReporter + `(?:` + caseMore + `)?` +
 		`|\[[0-9]{4}\]` + caseWS + caseReporter + `(?:` + caseMore + `){0,2}` +
-		`)` + caseWS + `[0-9]{1,6}\z`
+		`)` + caseWS + `[0-9]{1,6}|` + caseUnpublished + `)\z`
 )
 
 var (
