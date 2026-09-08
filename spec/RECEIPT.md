@@ -515,6 +515,7 @@ reads as `null`.
 | `year_unreadable` | a double miss on a citation the document printed no legible year for: with nothing to judge its recency by, the silence is not a denial; `200` with no URL |
 | `recent_volume` | a double miss on a citation the document dates in the current year or the one before, at the frontier of the index; `200` with no URL |
 | `volume_not_indexed` | a double miss in a volume the registry holds fewer than forty records from: the volume is being filled, and its silence is not a denial; `200` with no URL |
+| `registry_budget` | the check's budget of calls to the case registry was spent before this citation could be asked: nothing was asked, and nothing is known; `status` is `0`, `method` the way it would have been asked |
 
 The name the document printed is compared, and searched for, only when it was read with
 confidence: from the clause the citation is in — no sentence boundary, and no `See`, `cf.`,
