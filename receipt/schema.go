@@ -260,6 +260,17 @@ func validateClaim(v *schema.Validator, path string, val *canonical.Value, proje
 		} else {
 			c.Exists.Registry.Method = reg.StrOrNull("method", schema.Token(16))
 		}
+		// The case registry's members (§4.8.1.1): optional, so a registry that never writes them and
+		// a body sealed before they existed both pass; checked to their shape when present.
+		if _, m := reg.Optional("reason"); m != nil {
+			c.Exists.Registry.Reason = reg.StrOrNull("reason", schema.Token(48))
+		}
+		if _, m := reg.Optional("name_check"); m != nil {
+			c.Exists.Registry.NameCheck = reg.EnumOrNull("name_check", "match", "mismatch", "not_run")
+		}
+		if _, m := reg.Optional("cluster_id"); m != nil {
+			c.Exists.Registry.ClusterID = reg.IntOrNull("cluster_id", 0, canonical.MaxSafeInteger)
+		}
 		reg.Done()
 	}
 	if !projected {

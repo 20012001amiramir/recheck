@@ -123,6 +123,11 @@ type Registry struct {
 	Status int64
 	// Method names the call that answered, when the registry has more than one; null otherwise (§4.8.1).
 	Method *string
+	// The case registry's three further members (§4.8.1.1), each optional in the shape: nil when
+	// absent or null.
+	Reason    *string
+	NameCheck *string
+	ClusterID *int64
 }
 
 // Says is §4.8.2.

@@ -296,7 +296,7 @@ receipt-id     ^eb_[abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16
 doi-value      ^10\.\d{4,9}\/\S+$            length ≤ 200
 pmid-value     ^\d{1,9}$
 case-cite      one pattern, written here across four lines (it contains no literal whitespace):
-               ^(?:\d{1,4}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}
+               ^(?:\d{1,4}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s(?:[A-Z0-9][A-Za-z0-9.]{0,7}|\([1-5](?:st|d|th)\))){0,2}
                  |\[\d{4}\]\s\d{1,3}\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7})?
                  |\[\d{4}\]\s[A-Z][A-Za-z0-9.&'-]{0,12}(?:\s[A-Z0-9][A-Za-z0-9.]{0,7}){0,2}
                )\s\d{1,6}$                                                          length ≤ 30
@@ -324,7 +324,9 @@ Notes on the shapes:
   digits, `.`, `&`, `'` or `-` up to 13 characters in all; each further one starts with a capital
   letter or a digit and continues with letters, digits or `.` up to 8 characters in all — except
   that only two reporter tokens may follow a year-plus-volume, which is what keeps every shape
-  inside five tokens. Then a page of one to six digits. Exactly one whitespace character separates
+  inside five tokens — and after a volume a further token may instead be a court district in
+  parentheses, `(1st)` to `(5th)`, as the Illinois public-domain form prints it
+  (`2025 IL App (4th) 241427`). Then a page of one to six digits. Exactly one whitespace character separates
   tokens (the engine collapses runs before sealing). `123 S. Ct. 456`, `123 F. Supp. 2d 456`,
   `123 F.3d 456`, `12 Cal. App. 4th 345`, `12 N.Y.S.2d 34`, `[2020] UKSC 1`, `[2015] 2 Lloyd's Rep 123`
   all fit; a sentence that happens to start with a year and end with a number does not, and
@@ -455,7 +457,7 @@ Discriminated on `type`:
 | `retrievers` | array ≤ 8 of retriever objects, §4.8.3 |
 | `retriever_disagreement` | boolean — two retrievers fetched different bytes |
 | `single_retriever` | boolean — only one vantage answered |
-| `registry` | object `{ agency: token(32), status: integer 0…999, method: token(16) or null }` or null — the registry consulted for a doi/pmid/case locator, what it answered, and how it was asked |
+| `registry` | object `{ agency: token(32), status: integer 0…999, method: token(16) or null }` or null — the registry consulted for a doi/pmid/case locator, what it answered, and how it was asked. The case registry adds three optional members, `reason`, `name_check` and `cluster_id` (§4.8.1.1) |
 | `archive_url` | http-url or null |
 | `archive_status` | `"archived"`, `"requested"`, `"failed"` or `"skipped"` |
 | `archive_job_id` | archive-job or null |
@@ -469,29 +471,75 @@ like with like. A body that decodes past the issuer's decompression ceiling is n
 no `content_sha256` and does not count as having read the source.
 
 `method` names the call that answered, for a registry that can be asked in more than one way.
-The case registry has two: `"lookup"` is the exact citation lookup, which needs a credential and
+The case registry has three: `"lookup"` is the exact citation lookup, which needs a credential and
 answers about the citation itself; `"search"` is the open search, which needs none and answers with
-the records that carry the citation. A search confirmation is `200` only when exactly one record
-prints the citation asked about, matched on spacing and case alike; two such records is `300`
-(ambiguous). No record printing the citation is a real absence (`404`) only when the page the
-registry returned was its whole answer **and** the citation's reporter is one the registry indexes
-comprehensively — the federal reporters and the regional and state reporters the engine names. A
-citation in any other reporter, or a neutral citation with no reporter token at all (`[2019] EWHC
-123`), the registry may simply not carry, so its silence is not a denial: the answer is recorded as
-`200` with no URL. So too when records were left unreturned behind the page, or the page never said
-how many matched at all. Each of these `200`-with-no-URL cases rule 3 below reads as
-`SOURCE_UNREACHABLE`, never as "does not exist" — an unindexed citation is never accused of not
-existing. The exact lookup applies the same coverage gate to its own `404`. A registry with only one
-way of being asked writes `null`. `method` is required from
+the records that carry the citation; `"name_search"` is the open search asked by party name, court
+and year, when the citation itself is not in the index (§4.8.1.1). A confirmation is `200` only
+when exactly one record prints the citation asked about, matched on spacing, punctuation and case
+alike — or, of two or more that print it, exactly one carries the name the document printed; two
+such records otherwise is `300` (ambiguous). No record printing the citation is a real absence
+(`404`) only under the coverage rule of §4.8.1.1: the page the registry returned was its whole
+answer, no record answered to the name the document printed, and the reporter, the volume and the
+citation's age each pass. Otherwise — a reporter the registry does not index comprehensively, a
+neutral citation with no reporter token at all (`[2019] EWHC 123`), a volume the registry holds too
+few records from, a citation too recent for the index, records left unreturned behind the page, or a
+page that never said how many matched — the answer is recorded as `200` with no URL, which rule 4
+below reads as `SOURCE_UNREACHABLE`, never as "does not exist": an unindexed citation is never
+accused of not existing. The exact lookup applies the same rule to its own `404`. An HTTP 404, 400
+or 410 from the registry's endpoint itself is not an answer about the citation and is recorded as
+`0`. A registry with only one way of being asked writes `null`. `method` is required from
 `engine.version` `0.2.0`; a `0.1.x` body may omit it and is read as `"lookup"` (§15).
+
+##### 4.8.1.1 The case registry's members
+
+The case registry's answer carries three further members. Each is optional in the shape — absent
+from every other registry's answer, and from bodies sealed before the members existed — and absent
+reads as `null`.
+
+| member | rule |
+|---|---|
+| `reason` | token(48) or null — why the registry answered as it did, when `status` alone does not say; the values below, not a closed list in version 1 |
+| `name_check` | `"match"`, `"mismatch"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), matched whole or as an abbreviation of four letters or more. `"not_run"` when the document printed no such word, or the registry no name at all |
+| `cluster_id` | integer ≥ 0 or null — the registry's public identifier of the record it answered with: the one confirmed, or the one found at the cited page in another case's name |
+
+`reason` values the engine writes:
+
+| value | meaning |
+|---|---|
+| `citation_belongs_to_another_case` | the citation is real, and the record at that page shares no distinguishing party with the name the document printed: `name_check` is `"mismatch"`, `cluster_id` names the occupant, and the verdict is `NOT_FOUND` (rule 2) |
+| `citation_not_indexed` | the citation is not in the index; a search by name found exactly one record that shares a party with the cited name, falls within a year of the cited year, and prints no different citation in the same reporter: `method` is `"name_search"` and the record is the source |
+| `ambiguous` | two or more records could be the one meant — printing the citation, or answering to the name within the window — and rank is not evidence: `300` when they print the citation, `200` with no URL when found by name |
+| `court_mismatch` | the one record found by name sits in a court other than the one the citation names; `200` with no URL |
+| `citation_conflict` | the one record found by name prints, in the same reporter, a citation that is not the one cited; `200` with no URL |
+| `reporter_not_covered` | a double miss — no record prints the citation and none answers to the name — in a reporter the registry does not index comprehensively, or a citation with no reporter token; `200` with no URL |
+| `volume_not_indexed` | a double miss in a volume the registry holds fewer than twenty records from: the volume is being filled, and its silence is not a denial; `200` with no URL |
+| `recent_volume` | a double miss on a citation the document dates within the last year, at the frontier of the index; `200` with no URL |
+
+The coverage rule, for a double miss to be an absence (`404`): the page the registry returned was
+its whole answer; the citation's reporter is one the registry indexes comprehensively — the federal
+reporters and the regional and state reporters the engine names; the citation is not dated within
+the last year; and the registry demonstrably holds the volume, asked once a day per volume and
+answered with at least twenty records printing a citation from it. Each condition that fails is
+the `reason` recorded beside a `200` with no URL. The search by name asks for the first
+distinguishing word of each party, within a year either side of the cited year, in the cited court
+first when the engine can identify it, and then anywhere — so a court identifier the engine got
+wrong can never turn a real case into an absence.
+
+The URL a confirmed record resolves to is its opinion file — the registry's own copy on its
+storage host, else the court's — and the retrievers read it as any source; `cluster_id` is what a
+reader looks the record up by. A record with no file resolves to its page on the registry's site,
+which the registry guards behind a challenge: a retriever can hash that page but not read it, and
+SAYS then reports `no_registry_text` (§4.8.2). The name the document printed, the court and the
+year are the document's own text: they decide `name_check` and drive the search by name, and none
+of them ever enters a receipt.
 
 `verdict` values:
 
 | value | meaning |
 |---|---|
 | `RESOLVED` | at least one retriever read a 2xx answer with a body; `content_sha256` and `bytes` cover the whole body even when it ran past the size kept for text (SAYS then reports `too_large`) |
-| `RESOLVED_NO_ACCESS` | the source exists and answered, but its content could not be read: 401, 402, 403, 407, 429 or 451 from the URL, or the case registry answering 300 (ambiguous) |
-| `NOT_FOUND` | the identifier or the URL does not exist: the registry answered 404 or 400, or the URL itself answered 404 or 410 — and neither retriever read a 2xx body |
+| `RESOLVED_NO_ACCESS` | the source exists and answered, but its content could not be read: 401, 402, 403, 407, 429 or 451 from the URL, the case registry answering 300 (ambiguous), or the case registry confirming a record whose copy could not be read |
+| `NOT_FOUND` | the identifier or the URL does not exist: the registry answered 404 or 400, the case registry found another case at the cited page (§4.8.1.1), or the URL itself answered 404 or 410 — and neither retriever read a 2xx body |
 | `SOURCE_UNREACHABLE` | the network did not answer, answered 5xx, or the body never finished within the deadline — or there was no URL to fetch because the registry did not answer, refused the lookup (401, 403, 407, 429) or failed (5xx): nothing is known about the source either way |
 | `UNSUPPORTED_LOCATOR` | the citation is of a kind the engine cannot resolve; its locator is `unsupported` |
 
@@ -499,20 +547,27 @@ How the engine decides, in order — every input is a field beside the verdict, 
 re-derive it:
 
 1. the locator is `unsupported` → `UNSUPPORTED_LOCATOR`;
-2. the registry answered 404 or 400 and neither retriever read a 2xx body → `NOT_FOUND`; the
+2. the case registry found the citation, but the record at that page is another case than the one
+   the document named (`registry.name_check` is `"mismatch"`, §4.8.1.1) and neither retriever read
+   a 2xx body → `NOT_FOUND`;
+3. the registry answered 404 or 400 and neither retriever read a 2xx body → `NOT_FOUND`; the
    registry answered 300 and neither did → `RESOLVED_NO_ACCESS`;
-3. there was nothing to fetch (the registry gave no URL) and rule 2 did not apply →
+4. there was nothing to fetch (the registry gave no URL) and rules 2 and 3 did not apply →
    `SOURCE_UNREACHABLE`: the registry did not answer, refused the lookup (401, 403, 407, 429),
    failed (5xx), or answered without a page to read. A refusal is a fact about the lookup, not
    about the source; the status stays beside the verdict in `registry`;
-4. either retriever read a 2xx body → `RESOLVED`, whatever the registry said (its answer stays
+5. either retriever read a 2xx body → `RESOLVED`, whatever the registry said (its answer stays
    beside the verdict in `registry`);
-5. otherwise the URL's own status decides: 401/402/403/407/429/451 → `RESOLVED_NO_ACCESS`;
+6. the case registry confirmed the record — `status` 200, `cluster_id` set, `name_check` not
+   `"mismatch"` — and pointed at its copy, and neither retriever read a 2xx body from it →
+   `RESOLVED_NO_ACCESS`: the source exists; its copy did not come;
+7. otherwise the URL's own status decides: 401/402/403/407/429/451 → `RESOLVED_NO_ACCESS`;
    404/410 → `NOT_FOUND`; anything else, no answer and 5xx included → `SOURCE_UNREACHABLE`.
 
 So a registry 404 alone makes `NOT_FOUND` only when neither retriever read the page: what was read
-outranks what the registry said. Only a registry answer of 404 or 400 ever makes `NOT_FOUND`: a
-registry that refuses or rate-limits the lookup has said nothing about the identifier.
+outranks what the registry said. Only a registry answer of 404 or 400, or the case registry's
+`"mismatch"`, ever makes `NOT_FOUND`: a registry that refuses or rate-limits the lookup has said
+nothing about the identifier.
 `NOT_FOUND` and `SOURCE_UNREACHABLE` are different facts about different parties and are never
 merged.
 
@@ -521,7 +576,7 @@ merged.
 | member | rule |
 |---|---|
 | `verdict` | `"MATCH"`, `"DRIFT"`, `"NOT_FOUND"` or `"NOT_RUN"` |
-| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_registry_text` (the case was confirmed only by the registry's open search, whose resolved page the registry guards behind a challenge, so no opinion text was available to run against), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
+| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_registry_text` (the case resolved to a page on the registry's own site, which the registry guards behind a challenge, so no opinion text was available to run against; a case resolved to its opinion file is read like any source), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
 | `quoted_span` | span or null — where in the source text the match was found |
 | `match_kind` | `"exact"`, `"overlap"` or null |
 | `overlap_bp` | bp or null — how much of the quote the source carries, in basis points |

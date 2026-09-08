@@ -33,13 +33,16 @@ const JSWhitespace = `\t\n\x0B\f\r \x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2
 // The case-cite pattern of §4.1, assembled from its three alternatives — a volume, a bracketed
 // year, or a bracketed year and a volume of up to three digits — each followed by one to three
 // reporter tokens (only two after a year-plus-volume, which keeps every shape inside five tokens)
-// and a page, with exactly one whitespace character between tokens.
+// and a page, with exactly one whitespace character between tokens. After a volume, a further
+// token may instead be a court district in parentheses, `(1st)` to `(5th)`, as the Illinois
+// public-domain form prints it.
 const (
 	caseWS       = `[` + JSWhitespace + `]`
 	caseReporter = `[A-Z][A-Za-z0-9.&'-]{0,12}`
 	caseMore     = caseWS + `[A-Z0-9][A-Za-z0-9.]{0,7}`
+	caseDistrict = caseWS + `\([1-5](?:st|d|th)\)`
 	casePattern  = `\A(?:` +
-		`[0-9]{1,4}` + caseWS + caseReporter + `(?:` + caseMore + `){0,2}` +
+		`[0-9]{1,4}` + caseWS + caseReporter + `(?:` + caseMore + `|` + caseDistrict + `){0,2}` +
 		`|\[[0-9]{4}\]` + caseWS + `[0-9]{1,3}` + caseWS + caseReporter + `(?:` + caseMore + `)?` +
 		`|\[[0-9]{4}\]` + caseWS + caseReporter + `(?:` + caseMore + `){0,2}` +
 		`)` + caseWS + `[0-9]{1,6}\z`

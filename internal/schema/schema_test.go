@@ -29,6 +29,10 @@ func TestCaseCite(t *testing.T) {
 		"2019 BCSC 5",
 		"2019 ONSC 123",
 		"2019 SCC 5",
+		// The Illinois public-domain form: a court district in parentheses after the volume.
+		"2025 IL App (4th) 241427",
+		"2022 IL App (1st) 210454",
+		"2012 IL App (2d) 111151",
 		// The law-report family: a volume after the bracketed year.
 		"[2010] 1 AC 123",
 		"[2019] 2 WLR 456",
@@ -50,6 +54,9 @@ func TestCaseCite(t *testing.T) {
 		"12 Cal. App. 4th Ed. 345",             // four reporter tokens
 		"1234 Californian Appellate Reports 5", // a reporter token longer than a reporter
 		"[2019] EWHC 12 (Ch)",                  // a bracketed division is not part of the value
+		"2025 IL App (6th) 241427",             // Illinois has five districts
+		"2025 IL App (4th)",                    // no page
+		"[2025] IL App (4th) 241427",           // the district token follows a volume, not a bracketed year
 		"2019 SCC 5 and then some words 6",
 		"[2010] 1 ac 123",       // the reporter after a volume must start with a capital too
 		"[2010] 1234 AC 123",    // a volume has at most three digits
