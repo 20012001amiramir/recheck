@@ -512,8 +512,9 @@ reads as `null`.
 | `court_mismatch` | the one record found by name sits in a court other than the one the citation names; `200` with no URL |
 | `citation_conflict` | the one record found by name prints, in the same reporter, a citation that is not the one cited; `200` with no URL |
 | `reporter_not_covered` | a double miss — no record prints the citation and none answers to the name — in a reporter the registry does not index comprehensively, or a citation with no reporter token; `200` with no URL |
-| `volume_not_indexed` | a double miss in a volume the registry holds fewer than twenty records from: the volume is being filled, and its silence is not a denial; `200` with no URL |
-| `recent_volume` | a double miss on a citation the document dates within the last year, at the frontier of the index; `200` with no URL |
+| `year_unreadable` | a double miss on a citation the document printed no legible year for: with nothing to judge its recency by, the silence is not a denial; `200` with no URL |
+| `recent_volume` | a double miss on a citation the document dates in the current year or the one before, at the frontier of the index; `200` with no URL |
+| `volume_not_indexed` | a double miss in a volume the registry holds fewer than forty records from: the volume is being filled, and its silence is not a denial; `200` with no URL |
 
 The name the document printed is compared, and searched for, only when it was read with
 confidence: from the clause the citation is in — no sentence boundary, and no `See`, `cf.`,
@@ -526,15 +527,20 @@ the previous sentence — is no name: `name_check` is `"not_run"`, no search by 
 citation stands on its own. Only a confident read that shares no party and is no near miss is a
 `"mismatch"`.
 
-The coverage rule, for a double miss to be an absence (`404`): the page the registry returned was
-its whole answer; the citation's reporter is one the registry indexes comprehensively — the federal
-reporters and the regional and state reporters the engine names; the citation is not dated within
-the last year; and the registry demonstrably holds the volume, asked once a day per volume and
-answered with at least twenty records printing a citation from it. Each condition that fails is
-the `reason` recorded beside a `200` with no URL. The search by name asks for the first
-distinguishing word of each party, within a year either side of the cited year, in the cited court
-first when the engine can identify it, and then anywhere — so a court identifier the engine got
-wrong can never turn a real case into an absence.
+The coverage rule, for a double miss to be an absence (`404`), every condition in this order: the
+page the registry returned was its whole answer; the citation's reporter is one the registry
+indexes comprehensively — the federal reporters and the regional and state reporters the engine
+names; the document printed a legible year for the citation; that year is earlier than the year
+before the current one; and the registry demonstrably holds the volume, asked once a day per
+volume and answered with at least forty records printing a citation from it. The first condition
+that fails is the `reason` recorded beside a `200` with no URL. A record found by name resolves
+whatever the volume holds (`citation_not_indexed`). The search by name runs only for a reporter
+citation in a reporter the engine knows, whose year the document printed, with a name that
+distinguishes a party: it asks for the first distinguishing word of each party, within a year
+either side of the cited year, in the cited court first when the engine can identify it, and then
+anywhere — so a court identifier the engine got wrong can never turn a real case into an absence.
+A neutral citation (`[2019] UKSC 41`, `2020 ONCA 123`) is never searched by name: a surname alone
+would find some other court's case, and the registry's silence on it is `reporter_not_covered`.
 
 The URL a confirmed record resolves to is its opinion file — the registry's own copy on its
 storage host, else the court's — and the retrievers read it as any source; `cluster_id` is what a
