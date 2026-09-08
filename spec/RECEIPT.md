@@ -1072,7 +1072,10 @@ them fails `schema` at that path, `$.claims[0].source_of` first. The sealed bodi
 line are immutable and must keep verifying; nothing sealed after it may lean on the exception. The
 rule is keyed on the sealed `engine.version` alone and applies to the receipt schema and the
 projection schema alike: a projection of a `0.1.x` receipt carries exactly what the body carries
-(§11), so it omits what the body omits.
+(§11), so it omits what the body omits. Each component of the triple is read as a signed 64-bit
+integer, exactly as written; a version with a component that does not fit one —
+`0.1.9223372036854775808`, say — is not below anything, whatever its other components say, and such
+a body is read under the final rule.
 
 Nothing is ever written into a body to fill the gap. A verifier that re-serialises what it read
 must reproduce the absence, or its `self_hash` will not match — the read-as values above are for

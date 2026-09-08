@@ -546,6 +546,8 @@ var reSemverTriple = regexp.MustCompile(`\A([0-9]+)\.([0-9]+)\.([0-9]+)`)
 // SemverBefore reports whether version is below major.minor.patch on the numeric triple alone —
 // a pre-release or build suffix is ignored, so 0.1.0-rc.1 is before 0.2.0 and 0.2.0-rc.1 is not.
 // A string that is not a semver is not before anything: the Semver shape refuses it on its own.
+// Each component is read as a signed 64-bit integer, and one that does not fit makes the version
+// not before anything, whichever component it is — the issuer's comparator reads the same limit.
 func SemverBefore(version string, major, minor, patch int64) bool {
 	m := reSemverTriple.FindStringSubmatch(version)
 	if m == nil {

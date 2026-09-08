@@ -116,12 +116,14 @@ func TestShapes(t *testing.T) {
 // The compatibility rule (§15) is keyed on the numeric triple: a pre-release or build suffix is
 // ignored, and a string that is not a semver is not before anything.
 func TestSemverBefore(t *testing.T) {
-	for _, v := range []string{"0.1.0", "0.1.9", "0.0.1", "0.1.0-rc.1", "0.1.0+build.7"} {
+	for _, v := range []string{"0.1.0", "0.1.9", "0.0.1", "0.1.0-rc.1", "0.1.0+build.7", "0.1.10", "00.1.0", "0.1.9223372036854775807"} {
 		if !schema.SemverBefore(v, 0, 2, 0) {
 			t.Errorf("%s must be before 0.2.0", v)
 		}
 	}
-	for _, v := range []string{"0.2.0", "0.2.0-rc.1", "0.2.1", "0.10.0", "1.0.0", "nope", ""} {
+	// A component past a signed 64-bit integer makes the version not before anything, even when
+	// the minor alone would have said "before" — the issuer's comparator must say the same.
+	for _, v := range []string{"0.2.0", "0.2.0-rc.1", "0.2.1", "0.10.0", "1.0.0", "nope", "", "0.1.9223372036854775808", "0.1.99999999999999999999", "9223372036854775808.0.0", "0.9007199254740993.0"} {
 		if schema.SemverBefore(v, 0, 2, 0) {
 			t.Errorf("%s must not be before 0.2.0", v)
 		}
