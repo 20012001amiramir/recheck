@@ -187,12 +187,22 @@ func TestRootFileFailures(t *testing.T) {
 		t.Errorf("unknown member: the cryptography must still be reported: %v", checks)
 	}
 
+	// A role inside a root-file signature is such a member too. §9 gives a root signature no role,
+	// so an older tool reading a newer file would refuse a file the issuer itself signed — which is
+	// the failure mode §15.1 exists to prevent. It warns, and the cryptography still speaks.
+	file, checks = root.Verify([]byte(strings.Replace(src, `"alg": "ed25519"`, `"alg": "ed25519", "role": "issuer"`, 1)), set)
+	if file == nil || status(checks, "root_schema") != receipt.Warn || !strings.Contains(detail(checks, "root_schema"), "role") {
+		t.Errorf("signature role: %v", checks)
+	}
+	if status(checks, "root_signature") != receipt.Pass {
+		t.Errorf("signature role: the signature must still be reported: %v", checks)
+	}
+
 	// A schema failure no longer stops the cryptography (§12): the signature over the stated
 	// self_hash is reported all the same.
 	for name, bad := range map[string]string{
-		"wrong kind":     strings.Replace(src, `"kind": "exhibitb.root"`, `"kind": "exhibitb.receipt"`, 1),
-		"bad date":       strings.Replace(src, `"date": "2026-09-03"`, `"date": "2026-9-3"`, 1),
-		"signature role": strings.Replace(src, `"alg": "ed25519"`, `"alg": "ed25519", "role": "issuer"`, 1),
+		"wrong kind": strings.Replace(src, `"kind": "exhibitb.root"`, `"kind": "exhibitb.receipt"`, 1),
+		"bad date":   strings.Replace(src, `"date": "2026-09-03"`, `"date": "2026-9-3"`, 1),
 	} {
 		file, checks := root.Verify([]byte(bad), set)
 		if file != nil || status(checks, "root_schema") != receipt.Fail {
