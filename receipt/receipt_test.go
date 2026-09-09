@@ -47,6 +47,15 @@ func keySet(t *testing.T, key *canonical.Value) *receipt.KeySet {
 	return set
 }
 
+func check(res receipt.Result, name string) *receipt.Check {
+	for i := range res.Checks {
+		if res.Checks[i].Name == name {
+			return &res.Checks[i]
+		}
+	}
+	return nil
+}
+
 func statuses(res receipt.Result) map[string]string {
 	out := map[string]string{}
 	for _, c := range res.Checks {
@@ -258,11 +267,18 @@ func TestProjectionStripsClusterID(t *testing.T) {
 	if !strings.Contains(string(got), `"name_check":"mismatch"`) || !strings.Contains(string(got), `"reason":"citation_belongs_to_another_case"`) {
 		t.Errorf("projection lost the registry's tokens: %s", got)
 	}
-	// A projection that carries one is not one this format makes.
+	// A projection that carries one is not one this issuer signed, and that is the guarantee worth
+	// having: the schema warns, because §15.1 will not let a member it has never heard of be called
+	// a forgery, while the signature over the projection refuses it outright. Stripping the
+	// identifier is enforced where it is written, not by a reader's vocabulary.
 	src := strings.Replace(string(pretty(t, vec.Get("projection"))), `"method": null`, `"method": null, "cluster_id": 853092`, 1)
 	res := receipt.Verify([]byte(src), keys)
+	schema := check(res, "schema")
+	if schema == nil || schema.Status != receipt.Warn || !strings.Contains(schema.Detail, "$.claims[1].exists.registry.cluster_id") {
+		t.Errorf("projection with cluster_id: the unknown member must warn: %v", res.Checks)
+	}
 	ff := receipt.FirstFailure(res.Checks)
-	if ff == nil || ff.Name != "schema" || !strings.HasPrefix(ff.Detail, "$.claims[1].exists.registry.cluster_id") {
+	if ff == nil || ff.Name != "projection_signature" {
 		t.Errorf("projection with cluster_id: %v", res.Checks)
 	}
 }
