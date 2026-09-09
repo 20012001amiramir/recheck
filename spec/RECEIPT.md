@@ -934,11 +934,11 @@ taken over. The names below are for a receipt, with the projection's name after 
 
 | # | name | pass | fail | warn | skip |
 |---|---|---|---|---|---|
-| 1 | `schema` | see below | see below; `detail` names the first offending path | — | — |
-| 2 | `self_hash` / `projection_self_hash` | receipt: §2 recomputed equals its `self_hash`. projection: the projection self-hash (§11) is recomputed and reported — it is `pass` for any schema-valid projection, since a projection carries no stored copy of this hash to compare against; check 3 is what it is verified through | receipt: the recomputed hash does not equal `self_hash` | — | schema failed |
-| 3 | `signature` / `projection_signature` | receipt: exactly one `"issuer"` entry, whose `key_id` equals `issuer.key_id` and whose `sig` verifies under `issuer.public_key` over `self_hash`. projection: `projection_sig` verifies under `issuer.public_key` over the projection self-hash of check 2 | receipt: no `"issuer"` entry; more than one; its `key_id` differs from `issuer.key_id`; or the signature does not verify. projection: `projection_sig` does not verify over the recomputed hash — so any altered field fails here | — | schema failed |
-| 4 | `key_pinned` | the pinned set has `issuer.key_id`, and its 32 decoded key bytes equal the 32 decoded bytes of `issuer.public_key` | the pinned set has `issuer.key_id` with *different* bytes — someone signed under the issuer's key id with a key of their own; or the pinned entry itself is not canonical base64 of 32 bytes | `issuer.key_id` is not in the pinned set — perhaps a key newer than this verifier | no pinned set was supplied; schema failed |
-| 5 | `chain_fields` | kind `"exhibitb.receipt"` with integer `seq` ≥ 1 and hex64 `prev_hash` | a chained receipt missing either; an unchained one carrying either | — | kind `"exhibitb.receipt.unchained"` with both `null`; schema failed |
+| 1 | `schema` | see below | see below; `detail` names the first offending path | the value matched, but carries members this verifier does not know (§15.1); `detail` names them and says the tool is older than the record | — |
+| 2 | `self_hash` / `projection_self_hash` | receipt: §2 recomputed equals its `self_hash`. projection: the projection self-hash (§11) is recomputed and reported — it is `pass` for any schema-valid projection, since a projection carries no stored copy of this hash to compare against; check 3 is what it is verified through | receipt: the recomputed hash does not equal `self_hash`; or the document carries no `self_hash` to compare against | — | the input is not a JSON object |
+| 3 | `signature` / `projection_signature` | receipt: exactly one `"issuer"` entry, whose `key_id` equals `issuer.key_id` and whose `sig` verifies under `issuer.public_key` over `self_hash`. projection: `projection_sig` verifies under `issuer.public_key` over the projection self-hash of check 2 | receipt: no `"issuer"` entry; more than one; its `key_id` differs from `issuer.key_id`; or the signature does not verify. projection: `projection_sig` does not verify over the recomputed hash — so any altered field fails here | — | the input is not a JSON object |
+| 4 | `key_pinned` | the pinned set has `issuer.key_id`, and its 32 decoded key bytes equal the 32 decoded bytes of `issuer.public_key` | the pinned set has `issuer.key_id` with *different* bytes — someone signed under the issuer's key id with a key of their own; or the pinned entry itself is not canonical base64 of 32 bytes | `issuer.key_id` is not in the pinned set — perhaps a key newer than this verifier | no pinned set was supplied; the input is not a JSON object, or names no `issuer.key_id` |
+| 5 | `chain_fields` | kind `"exhibitb.receipt"` with integer `seq` ≥ 1 and hex64 `prev_hash` | a chained receipt missing either; an unchained one carrying either | — | kind `"exhibitb.receipt.unchained"` with both `null`; the input is not a JSON object, or names neither receipt kind |
 
 **Check 1 in full.** In this order: the text is read and refused if it starts with a byte-order
 mark, is not JSON, or carries a duplicate member name anywhere (§1.7, §1.9); the top-level value
@@ -946,10 +946,19 @@ must be an object; then the value is matched against the **receipt schema first*
 if that fails, against the **projection schema** (§11); if neither matches, `detail` names the
 first path the receipt schema rejected. Finally every string in the matched value must be
 canonicalizable (§1.1): an unpaired surrogate anywhere is a `schema` failure with `detail`
-`unpaired surrogate at <path>`. After a `schema` failure checks 2–5 are all reported as `skip`,
-under the receipt names.
+`unpaired surrogate at <path>`. A member neither schema names is not a failure — it is a `schema`
+`warn` under the forward-compatibility rule of §15.1, and the match continues.
 
-Every other check runs regardless of earlier failures, so the report is complete;
+**Every check runs regardless of every other, so the report is always complete.** In particular
+checks 2–5 do not depend on check 1: a `schema` failure never suppresses the cryptography, which
+is read straight off the document and reported on its own terms, so a reader is always told
+whether the bytes in front of them are the bytes the issuer signed. Checks 2–5 are `skip` only
+when there is nothing for them to work on — the input is not JSON, or its top-level value is not
+an object — and are then reported under the receipt names. A document that fails check 1 and
+passes checks 2 and 3 is a well-formed signed record this verifier is too old, or too new, to
+read in full; a document that passes check 1 and fails check 3 is a record whose bytes are not
+the ones that were signed. The two must never be reported as the same thing.
+
 `first_failure` is the name of the first check whose status is `fail`, or `null`. `ok` is true
 when no check failed. A `warn` never makes `ok` false.
 
@@ -1080,7 +1089,9 @@ each audit path is what §10's `PATH` produces, and that each proof verifies aga
   "unchained":        {"receipt", "self_hash"} — the same body issued unchained,
   "legacy":           {"name", "engine_version": "0.1.0", "receipt", "self_hash", "projection"}
                       — a body sealed before the format was finalized (§15), and its projection,
-  "tampered":         [{"name", "first_failure", "receipt"}, ×6]
+  "forward":          {"registry_name_check", "unknown_members"} — two bodies a verifier must
+                      not refuse (§15.1),
+  "tampered":         [{"name", "first_failure", "receipt"}, ×7]
 }
 ```
 
@@ -1096,9 +1107,21 @@ same projection with a count and a verdict rewritten while `self_hash`, `signatu
 `claims[].source_of`, no `counts.not_checked` and no `registry.method` — must pass all five checks
 and hash to `legacy.self_hash`, and `legacy.projection` must pass all five as a projection: this is
 the case that catches a verifier which requires the three members regardless of the version, or
-which fills them in and so hashes a different body. Each
-`tampered[i].receipt` must have `ok` false and `first_failure` equal to
-`tampered[i].first_failure`, with checks 2–5 `skip` whenever that is `schema`:
+which fills them in and so hashes a different body. `forward` carries the two forward-compatibility cases of §15.1, each `{"name", "receipt",
+"self_hash"}` and each signed with the same fixture key. `forward.registry_name_check.receipt`
+names a case registry's `method`, `reason`, `name_check` and `cluster_id` (§4.8.1.1) and must pass
+all five checks outright — exit 0, no warning: these are known members, and a verifier that
+predates them is exactly the failure this vector exists to catch. `forward.unknown_members.receipt`
+is the valid receipt with two members no schema names — `$.disclosures` and
+`$.claims[1].exists.registry.confidence_bp` — added before sealing, so its `self_hash` and its
+signature are over the body as it stands. It must report `schema` `warn` naming both paths, `pass`
+on checks 2, 3 and 5, and exit **2**: a verifier that fails it refuses records the issuer has not
+yet written, and one that passes it silently at exit 0 tells a reader it read fields it did not.
+Neither body's unknown members may be written into, dropped from, or read out of the value.
+
+Each `tampered[i].receipt` must have `ok` false and `first_failure` equal to
+`tampered[i].first_failure`. Checks 2–5 are reported in every one of them, never skipped for a
+`schema` failure (§12) — several of these bodies are signed, and a verifier must say so:
 
 1. an edited `overlap_bp` → `self_hash`;
 2. one flipped signature byte → `signature`;
@@ -1112,7 +1135,10 @@ which fills them in and so hashes a different body. Each
    that catches a regular-expression engine whose `\s` is ASCII only;
 6. the valid receipt — `engine.version` `0.2.0` — with `claims[].source_of`, `counts.not_checked`
    and `registry.method` removed → `schema`, at `$.claims[0].source_of` (§15). This is the case
-   that catches a verifier which extends the `0.1.x` allowance to every version.
+   that catches a verifier which extends the `0.1.x` allowance to every version;
+7. the public projection's `projection_sig` copied into the receipt → `schema`, at
+   `$.projection_sig` (§15.1). This is the case that catches a verifier which relaxed the
+   forward-compatibility rule far enough to let a projection be read as a receipt.
 
 The exact `self_hash` and `canonical_sha256` values are in the file; the reference implementation
 reproduces `receipt` byte for byte from its own fixtures, and so must any other.
@@ -1177,6 +1203,74 @@ must reproduce the absence, or its `self_hash` will not match — the read-as va
 what a verifier reports, never for what it hashes. `spec/vectors/receipt.json` carries one such
 body with its projection under `legacy` (§14), and one copy at `0.2.0` with the same omissions
 that must fail.
+
+### 15.1 Unknown members: a verifier older than the record
+
+The rule above is about members a body may **omit**. This one is about members a body may **add**.
+
+A member of a known object that neither §4, §9 nor §11 names is a `schema` **`warn`**, never a
+`fail`. The verifier reports its path, keeps checking the rest of the document, and — if nothing
+else is wrong — exits 2, *incomplete*, not 1, *failed*. Every unknown member found is named, in
+document order, at every depth.
+
+Why this is safe, and why the opposite is not. Everything in the body is covered by `self_hash`
+(§2), and `self_hash` is covered by the issuer signature (§3). Nobody but the holder of the issuer
+key can add a member to a sealed body without check 2 or check 3 saying so. Refusing on an unknown
+member therefore protects a reader from nothing: the cryptography already refuses the forger. What
+it does do is turn every verifier already in a reader's hands into a `fail` the moment the issuer
+adds a field — the record is sound, the reader is told it is bad, and the tool that was meant to
+settle the question has manufactured a dispute. A verifier that cannot read a field must say *I do
+not know this field*, which is a statement about the verifier, and must not say *this record is
+bad*, which is a statement about the record.
+
+**Positions that accept an unknown member.** Every object this format defines:
+
+| position | |
+|---|---|
+| `$` | the receipt or projection itself, except `projection_sig` below |
+| `$.issuer`, `$.document`, `$.binding`, `$.counts`, `$.engine`, `$.engine.says_thresholds` | |
+| `$.models[]`, `$.signatures[]` | each entry |
+| `$.claims[]` | each claim |
+| `$.claims[].locator`, `$.claims[].says` | |
+| `$.claims[].exists`, `$.claims[].exists.retrievers[]`, `$.claims[].exists.registry` | |
+| a root file's `$` and `$.signatures[]` (§9) | reported as `root_schema` `warn` |
+
+**Positions that do not.** These stay `fail`, and a reader may treat any of them as a record that
+does not belong to this format:
+
+- **`$.projection_sig`.** It is a known member of the format, not an unknown one, and its presence
+  is what says whether the document in hand is a receipt or its public projection — and therefore
+  which of two different hashes the signature covers. Since the two signatures are not domain-
+  separated (§16), reading one document as the other must stay impossible before any cryptography
+  runs. A receipt carrying `projection_sig` fails at `$.projection_sig`; a projection without one
+  fails at `$.projection_sig`.
+- **A duplicate member name** anywhere (§1.7, §1.9). That is not an unknown member but an
+  ambiguous document: two readers can disagree about what it says, and it has no canonical bytes.
+- **Anything that is not a member of an object.** An array has entries, not names; the rule has no
+  reach into `$.claims[3]` or `$.signatures[1]`, whose shapes are fixed.
+- **A known member of the wrong shape.** `"overlap_bp": "high"`, `"name_check": "maybe"`,
+  `"seq": 0` — the verifier knows what these mean and the value is not one of them. Reporting
+  those as merely unrecognised would let a body say something false in a field the reader trusts.
+- **A missing required member.** Its absence changes what the body asserts and, for `self_hash`
+  and `signatures`, removes what a check is taken over. Absence is `missing member`, always a
+  failure; §15's three-member allowance is the only exception, and it is keyed on the sealed
+  `engine.version`.
+
+An unknown member can therefore never stand in for one that is required: a required member that
+is absent is still reported as absent, whatever else the object carries.
+
+**What a hostile reader does with this.** Read the `schema` line and check 3 together:
+
+| `schema` | check 3 | what it means |
+|---|---|---|
+| `pass` | `pass` | the record is this format, and the bytes are the ones the issuer signed |
+| `warn` | `pass` | the bytes are the ones the issuer signed; this tool is older than this record and did not recognise every field. Get a newer verifier to read the rest; nothing here is evidence against the record |
+| `pass` or `warn` | `fail` | the bytes are **not** the ones that were signed |
+| `fail` | either | the document is not this format — and check 3 still says whether it was signed |
+
+Nothing is ever read *from* an unknown member: a verifier reports its path and its presence and
+draws no meaning from its value. Re-serialising is unaffected — an unknown member is part of the
+body, is hashed with the rest of it, and must be reproduced exactly, or `self_hash` will not match.
 
 ## 16. Known design notes
 
