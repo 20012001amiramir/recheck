@@ -566,7 +566,6 @@ func TestSchemaStrictness(t *testing.T) {
 		{"unknown member in a claim", `"refutation_attempted": true,`, `"refutation_attempted": true, "note": "x",`, "$.claims[0].note"},
 		{"unknown member in the case registry", `"method": null`, `"method": null, "confidence_bp": 9200`, "$.claims[1].exists.registry.confidence_bp"},
 		{"unknown member in issuer", `"name": "EXHIBIT B"`, `"name": "EXHIBIT B", "contact": "clerk@example.org"`, "$.issuer.contact"},
-		{"unknown member in a signature entry", `"role": "issuer"`, `"role": "issuer", "made_at": "2026-09-03T11:22:44Z"`, "$.signatures[0].made_at"},
 		{"unknown member in says", `"match_kind": "exact"`, `"match_kind": "exact", "rank": 1`, "$.claims[0].says.rank"},
 		{"unknown member in a retriever", `"vantage": "origin"`, `"vantage": "origin", "region": "eu-west"`, "$.claims[0].exists.retrievers[0].region"},
 		{"unknown member in counts", `"claims": 3,`, `"claims": 3, "withdrawn": 0,`, "$.counts.withdrawn"},
@@ -583,6 +582,17 @@ func TestSchemaStrictness(t *testing.T) {
 		if res.Checks[2].Status != receipt.Pass {
 			t.Errorf("%s: the signature must still be checked and reported: %v", c.name, res.Checks[2])
 		}
+	}
+
+	// signatures is outside the body the hash is taken over, so an unknown member there moves
+	// nothing: the rule on its own — one warning, four passes, nothing failed, exit 2.
+	res := receipt.Verify(edit(t, vec, []string{`"role": "issuer"`, `"role": "issuer", "made_at": "2026-09-03T11:22:44Z"`}), keys)
+	expect(t, "unknown member in a signature entry", res, map[string]string{
+		"schema": receipt.Warn, "self_hash": receipt.Pass, "signature": receipt.Pass,
+		"key_pinned": receipt.Pass, "chain_fields": receipt.Pass,
+	})
+	if !res.OK() || receipt.ExitCode(res.Checks) != 2 || !strings.Contains(res.Checks[0].Detail, "$.signatures[0].made_at") {
+		t.Errorf("unknown member in a signature entry: ok=%v exit=%d %q", res.OK(), receipt.ExitCode(res.Checks), res.Checks[0].Detail)
 	}
 
 	// Whole-document shapes.
@@ -635,7 +645,7 @@ func TestSchemaStrictness(t *testing.T) {
 		}
 	}
 	// Re-spelling a number does not move the hash.
-	res := receipt.Verify(edit(t, vec, []string{`"bytes": 812004,`, `"bytes": 8.12004e5,`}), keys)
+	res = receipt.Verify(edit(t, vec, []string{`"bytes": 812004,`, `"bytes": 8.12004e5,`}), keys)
 	if !res.OK() {
 		t.Errorf("exponent spelling: %v", res.Checks)
 	}
