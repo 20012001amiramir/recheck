@@ -139,10 +139,10 @@ adds the re-fetch of every cited URL that has a recorded content hash.
 
 | # | check | pass | fail | warn | skip |
 |---|---|---|---|---|---|
-| 1 | `schema` | strict receipt v1 (§4), else strict projection (§11). A body whose `engine.version` is below `0.2.0` was sealed before the format was finalized and may omit `claims[].source_of`, `counts.not_checked` and `registry.method` (§15) | not JSON, a duplicate key, a member missing, unknown or misshapen — `detail` names the path | — | — |
-| 2 | `self_hash` / `projection_self_hash` | receipt: recomputed canonical hash equals the stated one. projection: its own hash (§11), over every member but `projection_sig`, is recomputed and reported | receipt: it does not | — | schema failed |
-| 3 | `signature` / `projection_signature` | receipt: exactly one `issuer` signature, by `issuer.key_id`, verifying under the embedded key over `self_hash`. projection: `projection_sig` verifies under the embedded key over the projection hash — so a genuine projection passes outright, and any altered field fails here | none, several, wrong key id, or it does not verify | — | schema failed |
-| 4 | `key_pinned` | the pinned set has that key id with the same bytes | same id, different bytes; or a broken pin | key id not in the pinned set | no pinned set at all; schema failed |
+| 1 | `schema` | strict receipt v1 (§4), else strict projection (§11). A body whose `engine.version` is below `0.2.0` was sealed before the format was finalized and may omit `claims[].source_of`, `counts.not_checked` and `registry.method` (§15) | not JSON, a duplicate key, a member missing or misshapen — `detail` names the path | a member no shape names (§15.1): reported, never refused — the record may simply be newer than this build | — |
+| 2 | `self_hash` / `projection_self_hash` | receipt: recomputed canonical hash equals the stated one. projection: its own hash (§11), over every member but `projection_sig`, is recomputed and reported | receipt: it does not | — | the input is not a JSON object |
+| 3 | `signature` / `projection_signature` | receipt: exactly one `issuer` signature, by `issuer.key_id`, verifying under the embedded key over `self_hash`. projection: `projection_sig` verifies under the embedded key over the projection hash — so a genuine projection passes outright, and any altered field fails here | none, several, wrong key id, or it does not verify | — | the input is not a JSON object |
+| 4 | `key_pinned` | the pinned set has that key id with the same bytes | same id, different bytes; or a broken pin | key id not in the pinned set | no pinned set at all; the input is not a JSON object |
 | 5 | `chain_fields` | chained: `seq` ≥ 1 and hex `prev_hash` | chained without them, unchained with them | — | unchained receipt: not anchored to the public chain |
 | 6 | `root_schema`, `root_self_hash`, `root_signature` | the root file parses, hashes and verifies under the pinned root key | it does not (an unpinned root key is a failure: the file carries no key) | — | with `--root` only |
 | 7 | `inclusion` | the proof is for this receipt and rebuilds the root file's root | it is not, or does not | proof `pending`; `--root` or `--proof` missing | proof `unchained`; an earlier failure |
@@ -154,7 +154,7 @@ Exit codes:
 |---|---|---|
 | 0 | `PASS` | every check passed or was skipped (a skip is a check that does not apply) |
 | 1 | `FAIL` | at least one check failed |
-| 2 | `INCOMPLETE` | nothing failed, but something could not be established: an unpinned key, a changed or unreachable source, a proof without its root file, a pending proof |
+| 2 | `INCOMPLETE` | nothing failed, but something could not be established: an unpinned key, a member this build does not know, a changed or unreachable source, a proof without its root file, a pending proof |
 | 64 | — | usage: a file that cannot be read, a key set that does not parse, an unknown flag, `--offline` with a receipt id |
 
 A file that reads but is not a receipt is exit 1 with `first_failure.check = "schema"`, not 64.
@@ -181,6 +181,12 @@ one that has since been taken down, and neither answer touches the checks over t
 `first_failure` is `{check, detail}` for the first failing check; `refetch` entries have a
 `status` of `match`, `changed` or `unreachable` (no answer, or an HTTP status of 400 or worse)
 and a `detail` when there is something to say;
+A schema complaint never stops the cryptography. Checks 2–5 read what they need straight off the
+document and are reported whatever check 1 made of it, so the report always separates *this build
+is older than this record* (`schema: warn`, signature `pass`, exit 2) from *these are not the bytes
+that were signed* (signature `fail`, exit 1). They are skipped only when there is no JSON object to
+work on.
+
 `receipt` is filled in on a best-effort basis even when the schema fails. A run that could not
 start (exit 64) answers `{ok: false, exit: 64, error: "…"}` with empty lists, so a caller never has
 to parse stderr.

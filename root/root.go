@@ -3,6 +3,7 @@ package root
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/20012001amiramir/recheck/canonical"
 	"github.com/20012001amiramir/recheck/internal/schema"
@@ -27,6 +28,9 @@ type File struct {
 	KeyID      string
 	SelfHash   string
 	Signatures []Signature
+	// SchemaWarnings are the members of this file that §9 does not name (§15.1): reported by path,
+	// never read, and hashed with the rest of the file like any other member.
+	SchemaWarnings []schema.Error
 }
 
 // Signature is a root-file signature entry: no role.
@@ -77,6 +81,7 @@ func FromValue(raw *canonical.Value) (*File, error) {
 	if err := v.Err(); err != nil {
 		return nil, err
 	}
+	f.SchemaWarnings = v.Warnings()
 	return f, nil
 }
 
@@ -90,44 +95,89 @@ func Verify(data []byte, keys *receipt.KeySet) (*File, []receipt.Check) {
 	}
 
 	f, raw, err := Parse(data)
-	if err != nil {
+	switch {
+	case err != nil:
 		detail := err.Error()
 		if ce, ok := err.(*canonical.Error); ok {
 			detail = ce.Path + ": " + ce.Msg
 		}
 		add("root_schema", receipt.Fail, detail)
-		add("root_self_hash", receipt.Skip, "root schema failed")
-		add("root_signature", receipt.Skip, "root schema failed")
+	case len(f.SchemaWarnings) > 0:
+		// A member §9 does not name is a warning, not a refusal: the file is under its own
+		// self_hash and signature, so only the root key could have put one there (§15.1).
+		paths := make([]string, 0, len(f.SchemaWarnings))
+		for _, w := range f.SchemaWarnings {
+			paths = append(paths, w.Path)
+		}
+		add("root_schema", receipt.Warn, "root file v1 for "+f.Date+", "+strconv.FormatInt(f.Count, 10)+
+			" leaves; members this verifier does not know: "+strings.Join(paths, ", ")+
+			" — this tool is older than this file; the checks below still say whether it was signed")
+	default:
+		add("root_schema", receipt.Pass, "root file v1 for "+f.Date+", "+strconv.FormatInt(f.Count, 10)+" leaves")
+	}
+
+	// Checks 2 and 3 do not depend on check 1 (§12): read what they need off the parsed file, or
+	// off the raw JSON when the schema refused it, so a reader always learns whether the bytes are
+	// the ones the issuer signed.
+	if raw == nil || raw.Kind != canonical.Object {
+		add("root_self_hash", receipt.Skip, "the input is not a JSON object")
+		add("root_signature", receipt.Skip, "the input is not a JSON object")
 		return nil, checks
 	}
-	add("root_schema", receipt.Pass, "root file v1 for "+f.Date+", "+strconv.FormatInt(f.Count, 10)+" leaves")
+	stated, keyID, sigs := rawFields(f, raw)
 
 	computed, herr := canonical.SelfHash(raw)
 	switch {
 	case herr != nil:
 		add("root_self_hash", receipt.Fail, "could not canonicalize: "+herr.Error())
-	case computed == f.SelfHash:
-		add("root_self_hash", receipt.Pass, f.SelfHash)
+	case stated == "":
+		add("root_self_hash", receipt.Fail, "computed "+computed+", the file carries no self_hash to compare it against")
+	case computed == stated:
+		add("root_self_hash", receipt.Pass, stated)
 	default:
-		add("root_self_hash", receipt.Fail, "computed "+computed+", root file says "+f.SelfHash)
+		add("root_self_hash", receipt.Fail, "computed "+computed+", root file says "+stated)
 	}
 
-	pinned, ok := keys.Lookup(receipt.PurposeRoot, f.KeyID)
+	pinned, ok := keys.Lookup(receipt.PurposeRoot, keyID)
 	switch {
-	case len(f.Signatures) == 0:
+	case len(sigs) == 0:
 		add("root_signature", receipt.Fail, "no signature")
-	case f.Signatures[0].KeyID != f.KeyID:
-		add("root_signature", receipt.Fail, "first signature key_id "+f.Signatures[0].KeyID+" is not the file's "+f.KeyID)
+	case sigs[0].KeyID != keyID:
+		add("root_signature", receipt.Fail, "first signature key_id "+sigs[0].KeyID+" is not the file's "+keyID)
 	case !ok:
-		add("root_signature", receipt.Fail, "root key "+f.KeyID+" is not pinned and the file carries no key, so the signature cannot be checked")
+		add("root_signature", receipt.Fail, "root key "+keyID+" is not pinned and the file carries no key, so the signature cannot be checked")
 	case pinned.Broken:
-		add("root_signature", receipt.Fail, "the pinned entry for "+f.KeyID+" is not canonical base64 of 32 bytes: the pin itself is broken")
-	case receipt.VerifyRaw(pinned.PublicKey, f.SelfHash, f.Signatures[0].Sig):
-		add("root_signature", receipt.Pass, "ed25519 by "+f.KeyID)
+		add("root_signature", receipt.Fail, "the pinned entry for "+keyID+" is not canonical base64 of 32 bytes: the pin itself is broken")
+	case receipt.VerifyRaw(pinned.PublicKey, stated, sigs[0].Sig):
+		add("root_signature", receipt.Pass, "ed25519 by "+keyID)
 	default:
-		add("root_signature", receipt.Fail, "ed25519 signature by "+f.KeyID+" does not verify over self_hash")
+		add("root_signature", receipt.Fail, "ed25519 signature by "+keyID+" does not verify over self_hash")
 	}
 	return f, checks
+}
+
+// rawFields is the self_hash, key id and signatures checks 2 and 3 are taken over: the validated
+// file's when there is one, else read best-effort off the JSON that failed check 1. A member of the
+// wrong type reads as absent, and the check then says what it could not establish.
+func rawFields(f *File, raw *canonical.Value) (selfHash, keyID string, sigs []Signature) {
+	if f != nil {
+		return f.SelfHash, f.KeyID, f.Signatures
+	}
+	str := func(v *canonical.Value) string {
+		if v != nil && v.Kind == canonical.String {
+			return v.Str
+		}
+		return ""
+	}
+	selfHash, keyID = str(raw.Get("self_hash")), str(raw.Get("key_id"))
+	if arr := raw.Get("signatures"); arr != nil && arr.Kind == canonical.Array {
+		for _, sv := range arr.Array {
+			if sv.Kind == canonical.Object {
+				sigs = append(sigs, Signature{KeyID: str(sv.Get("key_id")), Alg: str(sv.Get("alg")), Sig: str(sv.Get("sig"))})
+			}
+		}
+	}
+	return selfHash, keyID, sigs
 }
 
 // Proof is the answer of GET /api/receipt/<id>/proof (§10): an inclusion proof, or a status of

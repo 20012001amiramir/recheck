@@ -170,16 +170,21 @@ func validate(raw *canonical.Value, projected bool) (*Receipt, *SchemaError) {
 		})
 		so.Done()
 	}
-	// A projection carries one member a receipt never does: its own signature (§11). Requiring it
-	// here is also what keeps the two schemas apart, and refuses a projection with the signature
-	// stripped off.
+	// A projection carries one member a receipt never does: its own signature (§11). It is the
+	// discriminator between the two documents, and therefore between the two hashes a signature can
+	// be over; since the two are not domain-separated (§16), it is the one member the
+	// forward-compatibility rule does not cover (§15.1). Required in a projection, refused in a
+	// receipt — never merely unrecognised in either.
 	if projected {
 		r.ProjectionSig = o.Str("projection_sig", schema.SigB64)
+	} else {
+		o.Forbidden("projection_sig", "a receipt does not carry projection_sig: it is the mark of a public projection")
 	}
 	o.Done()
 	if err := v.Err(); err != nil {
 		return nil, err
 	}
+	r.SchemaWarnings = v.Warnings()
 	return r, nil
 }
 

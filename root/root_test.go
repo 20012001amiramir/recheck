@@ -54,6 +54,15 @@ func status(checks []receipt.Check, name string) string {
 	return "missing"
 }
 
+func detail(checks []receipt.Check, name string) string {
+	for _, c := range checks {
+		if c.Name == name {
+			return c.Detail
+		}
+	}
+	return ""
+}
+
 func TestVector(t *testing.T) {
 	vec := vector(t)
 	rf := vec.Get("root_file")
@@ -167,15 +176,34 @@ func TestRootFileFailures(t *testing.T) {
 	if status(checks, "root_signature") != receipt.Fail {
 		t.Errorf("wrong purpose: %v", checks)
 	}
-	// Schema failures skip the rest.
+	// A member §9 does not name is a warning, not a refusal (§15.1): the file still parses, and the
+	// two cryptographic checks still say what they say — here that the body was edited after
+	// sealing (self_hash) while the signature over the stated hash is untouched.
+	file, checks := root.Verify([]byte(strings.Replace(src, `"count": 3`, `"count": 3, "extra": 1`, 1)), set)
+	if file == nil || status(checks, "root_schema") != receipt.Warn || !strings.Contains(detail(checks, "root_schema"), "$.extra") {
+		t.Errorf("unknown member: %v", checks)
+	}
+	if status(checks, "root_self_hash") != receipt.Fail || status(checks, "root_signature") != receipt.Pass {
+		t.Errorf("unknown member: the cryptography must still be reported: %v", checks)
+	}
+
+	// A schema failure no longer stops the cryptography (§12): the signature over the stated
+	// self_hash is reported all the same.
 	for name, bad := range map[string]string{
-		"unknown member":  strings.Replace(src, `"count": 3`, `"count": 3, "extra": 1`, 1),
-		"wrong kind":      strings.Replace(src, `"kind": "exhibitb.root"`, `"kind": "exhibitb.receipt"`, 1),
-		"bad date":        strings.Replace(src, `"date": "2026-09-03"`, `"date": "2026-9-3"`, 1),
-		"signature role":  strings.Replace(src, `"alg": "ed25519"`, `"alg": "ed25519", "role": "issuer"`, 1),
-		"not json":        "{",
-		"top-level array": "[]",
+		"wrong kind":     strings.Replace(src, `"kind": "exhibitb.root"`, `"kind": "exhibitb.receipt"`, 1),
+		"bad date":       strings.Replace(src, `"date": "2026-09-03"`, `"date": "2026-9-3"`, 1),
+		"signature role": strings.Replace(src, `"alg": "ed25519"`, `"alg": "ed25519", "role": "issuer"`, 1),
 	} {
+		file, checks := root.Verify([]byte(bad), set)
+		if file != nil || status(checks, "root_schema") != receipt.Fail {
+			t.Errorf("%s: %v", name, checks)
+		}
+		if status(checks, "root_signature") != receipt.Pass {
+			t.Errorf("%s: the signature must still be reported: %v", name, checks)
+		}
+	}
+	// They skip only when there is no JSON object to check.
+	for name, bad := range map[string]string{"not json": "{", "top-level array": "[]"} {
 		file, checks := root.Verify([]byte(bad), set)
 		if file != nil || status(checks, "root_schema") != receipt.Fail || status(checks, "root_self_hash") != receipt.Skip || status(checks, "root_signature") != receipt.Skip {
 			t.Errorf("%s: %v", name, checks)
@@ -183,7 +211,7 @@ func TestRootFileFailures(t *testing.T) {
 	}
 	// An empty day: count 0, null seqs, the empty-tree root.
 	empty := `{"v":1,"kind":"exhibitb.root","date":"2026-09-04","first_seq":null,"last_seq":null,"count":0,"root":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","prev_root":"` + vec.Get("root_file").Get("root").Str + `","head_hash":"` + vec.Get("root_file").Get("head_hash").Str + `","key_id":"eb-root-test","self_hash":"0000000000000000000000000000000000000000000000000000000000000000","signatures":[]}`
-	file, checks := root.Verify([]byte(empty), set)
+	file, checks = root.Verify([]byte(empty), set)
 	if file == nil || status(checks, "root_schema") != receipt.Pass || status(checks, "root_signature") != receipt.Fail {
 		t.Errorf("empty day: %v", checks)
 	}

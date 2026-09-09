@@ -953,8 +953,10 @@ canonicalizable (§1.1): an unpaired surrogate anywhere is a `schema` failure wi
 checks 2–5 do not depend on check 1: a `schema` failure never suppresses the cryptography, which
 is read straight off the document and reported on its own terms, so a reader is always told
 whether the bytes in front of them are the bytes the issuer signed. Checks 2–5 are `skip` only
-when there is nothing for them to work on — the input is not JSON, or its top-level value is not
-an object — and are then reported under the receipt names. A document that fails check 1 and
+when there is nothing for them to work on: the input is not JSON — a byte-order mark, a duplicate
+member name and an unpaired surrogate each make it so (§1.9) — or its top-level value is not an
+object. They are reported under the receipt names, or under the projection names when the document
+carries `projection_sig`. A document that fails check 1 and
 passes checks 2 and 3 is a well-formed signed record this verifier is too old, or too new, to
 read in full; a document that passes check 1 and fails check 3 is a record whose bytes are not
 the ones that were signed. The two must never be reported as the same thing.

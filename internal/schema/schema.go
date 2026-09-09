@@ -216,9 +216,10 @@ func DecodeSignature(b64 string) ([]byte, error) {
 // ── validator ─────────────────────────────────────────────────────────────
 
 // Validator keeps the first error; every getter after that is inert and returns zero values,
-// so a schema function reads as straight-line code.
+// so a schema function reads as straight-line code. Warnings are kept apart and never stop it.
 type Validator struct {
-	err *Error
+	err  *Error
+	warn []Error
 }
 
 // Fail records the first error.
@@ -228,8 +229,15 @@ func (v *Validator) Fail(path, msg string) {
 	}
 }
 
+// Warn records a complaint that does not refuse the document (spec §15.1). Every warning is kept,
+// in the order the walk met it.
+func (v *Validator) Warn(path, msg string) { v.warn = append(v.warn, Error{Path: path, Msg: msg}) }
+
 // Err is the first error, or nil.
 func (v *Validator) Err() *Error { return v.err }
+
+// Warnings are the complaints that did not refuse the document, in document order.
+func (v *Validator) Warnings() []Error { return v.warn }
 
 // Object is one strict object under validation.
 type Object struct {
@@ -282,16 +290,31 @@ func (o *Object) Optional(name string) (string, *canonical.Value) {
 	return path, o.val.Get(name)
 }
 
-// Done reports the first unknown member.
+// Done reports every member this shape does not name — as a warning, not a failure (spec §15.1).
+// The whole body is under self_hash and self_hash is under the issuer signature, so nobody but the
+// issuer can have put a member here without the cryptography saying so; refusing one would only
+// turn a verifier older than the record into a FAIL on a record that is sound. A member that is
+// part of the format but not of this shape is Forbidden instead, and stays a failure.
+//
+// The guard on the first error is what keeps the warnings honest: after a failure the walk stops
+// marking members as seen, so everything left would be reported as unknown when it is not.
 func (o *Object) Done() {
 	if o.val == nil || o.v.err != nil {
 		return
 	}
 	for _, m := range o.val.Members {
 		if !o.seen[m.Key] {
-			o.v.Fail(o.path+"."+m.Key, "unknown member")
-			return
+			o.v.Warn(o.path+"."+m.Key, "unknown member")
 		}
+	}
+}
+
+// Forbidden marks name as known and refuses a body that carries it. It is how a member the format
+// defines elsewhere stays a failure rather than becoming an unrecognised one (§15.1) — the
+// receipt/projection discriminator being the case this exists for.
+func (o *Object) Forbidden(name, why string) {
+	if path, m := o.Optional(name); m != nil {
+		o.v.Fail(path, why)
 	}
 }
 

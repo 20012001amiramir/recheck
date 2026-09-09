@@ -39,6 +39,10 @@ type Receipt struct {
 	// Projected marks a public projection: cited URLs are gone, self_hash is not recomputed, and
 	// projection_sig binds the visible fields instead.
 	Projected bool
+	// SchemaWarnings are the members of this body that no shape in the spec names (§15.1). They are
+	// reported by path and never read: the value is part of the body, is hashed with the rest of it
+	// and must be reproduced exactly, but nothing here draws meaning from it.
+	SchemaWarnings []SchemaError
 }
 
 // Issuer is §4.3.
@@ -180,12 +184,4 @@ type Signature struct {
 }
 
 // IssuerSignatures returns the entries whose role is "issuer" — exactly one in a valid receipt.
-func (r *Receipt) IssuerSignatures() []Signature {
-	var out []Signature
-	for _, s := range r.Signatures {
-		if s.Role == RoleIssuer {
-			out = append(out, s)
-		}
-	}
-	return out
-}
+func (r *Receipt) IssuerSignatures() []Signature { return issuerSignaturesOf(r.Signatures) }

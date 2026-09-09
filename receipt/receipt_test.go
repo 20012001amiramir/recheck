@@ -298,17 +298,24 @@ func TestLegacyVector(t *testing.T) {
 		t.Errorf("legacy projection: exit %d %v", receipt.ExitCode(res.Checks), res.Checks)
 	}
 
-	// Nothing else is relaxed: a member that is present must still match its shape, and an
-	// unknown member is still refused.
+	// Nothing else is relaxed: a member that is present must still match its shape.
 	src := string(pretty(t, leg.Get("receipt")))
 	for name, edited := range map[string]string{
 		"source_of present but not an enum": strings.Replace(src, `"level": "SAYS"`, `"source_of": "prose", "level": "SAYS"`, 1),
 		"not_checked present but negative":  strings.Replace(src, `"claims": 3,`, `"claims": 3, "not_checked": -1,`, 1),
-		"unknown member":                    strings.Replace(src, `"v": 1,`, `"v": 1, "extra": true,`, 1),
 	} {
 		if ff := receipt.FirstFailure(receipt.Verify([]byte(edited), keys).Checks); ff == nil || ff.Name != "schema" {
 			t.Errorf("%s: %v", name, ff)
 		}
+	}
+	// The two rules do not interact: a member the schema does not name is a warning here exactly as
+	// it is in a current body (§15.1), and the §15 defaults are still read.
+	res = receipt.Verify([]byte(strings.Replace(src, `"v": 1,`, `"v": 1, "extra": true,`, 1)), keys)
+	if res.Checks[0].Status != receipt.Warn || !strings.Contains(res.Checks[0].Detail, "$.extra") {
+		t.Errorf("legacy body with an unknown member: %v", res.Checks[0])
+	}
+	if res.Receipt == nil || res.Receipt.Claims[0].SourceOf != "body" {
+		t.Errorf("legacy body with an unknown member: the §15 defaults must still be read: %+v", res.Receipt)
 	}
 
 	// The same omissions in a body at 0.2.0 are a schema failure, at the first claim's source_of.
@@ -368,11 +375,13 @@ func TestTamperedVectors(t *testing.T) {
 		if receipt.ExitCode(res.Checks) != 1 {
 			t.Errorf("%s: exit %d", name, receipt.ExitCode(res.Checks))
 		}
-		if want == "schema" {
-			for _, c := range res.Checks[1:] {
-				if c.Status != receipt.Skip {
-					t.Errorf("%s: %s is %s after a schema failure", name, c.Name, c.Status)
-				}
+		// A schema failure no longer suppresses checks 2–5 (§12): every one of them is reported, so
+		// a reader is told whether the bytes are the ones that were signed even for a body this
+		// verifier could not read in full.
+		for _, c := range res.Checks[1:] {
+			if c.Status == receipt.Skip && !strings.Contains(c.Detail, "not a JSON object") &&
+				!strings.Contains(c.Detail, "not anchored") && !strings.Contains(c.Detail, "names neither receipt kind") {
+				t.Errorf("%s: %s was skipped: %s", name, c.Name, c.Detail)
 			}
 		}
 	}
@@ -496,9 +505,10 @@ func TestSchemaStrictness(t *testing.T) {
 	cases := []struct {
 		name, from, to, path string
 	}{
-		{"unknown top-level member", `"v": 1,`, `"v": 1, "extra": true,`, "$.extra"},
-		{"unknown member in a claim", `"refutation_attempted": true,`, `"refutation_attempted": true, "note": "x",`, "$.claims[0].note"},
 		{"missing member", `"holds_attempted": 1`, `"holds_attempted_": 1`, "$.counts.holds_attempted"},
+		// projection_sig is the receipt/projection discriminator, not an unrecognised member: it is
+		// the one name the forward-compatibility rule does not cover (§15.1).
+		{"a receipt carrying projection_sig", `"self_hash":`, `"projection_sig": "` + sig + `", "self_hash":`, "$.projection_sig"},
 		{"non-integer number", `"overlap_bp": 10000`, `"overlap_bp": 10000.5`, "$.claims[0].says.overlap_bp"},
 		{"bp above 10000", `"overlap_bp": 10000`, `"overlap_bp": 10001`, "$.claims[0].says.overlap_bp"},
 		{"span start after end", `120,`, `300,`, "$.claims[0].doc_span"},
@@ -544,6 +554,34 @@ func TestSchemaStrictness(t *testing.T) {
 		}
 		if !strings.HasPrefix(ff.Detail, c.path+":") && !strings.HasPrefix(ff.Detail, c.path+"[") {
 			t.Errorf("%s: detail %q does not name %s", c.name, ff.Detail, c.path)
+		}
+	}
+
+	// Members no shape names are warnings, not refusals (§15.1): the walk finishes, the path is
+	// named, and checks 2–5 are still reported. Each body below is edited after sealing, so
+	// self_hash fails — and the signature over the stated hash still passes, which is exactly the
+	// pair of facts a reader needs to tell an old verifier from a rewritten record.
+	warned := []struct{ name, from, to, path string }{
+		{"unknown top-level member", `"v": 1,`, `"v": 1, "extra": true,`, "$.extra"},
+		{"unknown member in a claim", `"refutation_attempted": true,`, `"refutation_attempted": true, "note": "x",`, "$.claims[0].note"},
+		{"unknown member in the case registry", `"method": null`, `"method": null, "confidence_bp": 9200`, "$.claims[1].exists.registry.confidence_bp"},
+		{"unknown member in issuer", `"name": "EXHIBIT B"`, `"name": "EXHIBIT B", "contact": "clerk@example.org"`, "$.issuer.contact"},
+		{"unknown member in a signature entry", `"role": "issuer"`, `"role": "issuer", "made_at": "2026-09-03T11:22:44Z"`, "$.signatures[0].made_at"},
+		{"unknown member in says", `"match_kind": "exact"`, `"match_kind": "exact", "rank": 1`, "$.claims[0].says.rank"},
+		{"unknown member in a retriever", `"vantage": "origin"`, `"vantage": "origin", "region": "eu-west"`, "$.claims[0].exists.retrievers[0].region"},
+		{"unknown member in counts", `"claims": 3,`, `"claims": 3, "withdrawn": 0,`, "$.counts.withdrawn"},
+		{"unknown member in engine", `"normalize": "norm@1"`, `"normalize": "norm@1", "profile": "strict"`, "$.engine.profile"},
+	}
+	for _, c := range warned {
+		res := receipt.Verify(edit(t, vec, []string{c.from, c.to}), keys)
+		if res.Checks[0].Status != receipt.Warn || !strings.Contains(res.Checks[0].Detail, c.path) {
+			t.Errorf("%s: schema %s %q", c.name, res.Checks[0].Status, res.Checks[0].Detail)
+		}
+		if ff := receipt.FirstFailure(res.Checks); ff == nil || ff.Name != "self_hash" {
+			t.Errorf("%s: a body edited after sealing must fail self_hash, not schema: %v", c.name, res.Checks)
+		}
+		if res.Checks[2].Status != receipt.Pass {
+			t.Errorf("%s: the signature must still be checked and reported: %v", c.name, res.Checks[2])
 		}
 	}
 
