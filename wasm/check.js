@@ -43,6 +43,9 @@ const vectors = path.join(__dirname, "..", "spec", "vectors");
 const receipt = fs.readFileSync(path.join(vectors, "receipt-valid.json"), "utf8");
 const keys = fs.readFileSync(path.join(vectors, "test-key.json"), "utf8");
 const edited = receipt.replace('"seq": 1,', '"seq": 2,');
+// A sealed body carrying members no schema names: the forward-compatibility rule of §15.1 says it
+// warns and verifies (exit 2), never refuses. It is the case the shipped build got wrong.
+const forward = JSON.stringify(JSON.parse(fs.readFileSync(path.join(vectors, "receipt.json"), "utf8")).forward.unknown_members.receipt, null, 2);
 
 // Until the checks have run, any exit is a failure — a module that dies on start may exit 0 on
 // its own or leave nothing pending. Writes are flushed before exiting: on Windows a pipe is
@@ -82,6 +85,7 @@ WebAssembly.instantiate(fs.readFileSync(wasmPath), go.importObject)
     const notText = JSON.parse(api.verify(42));
     const diff = JSON.parse(api.tamper(receipt, edited));
     const same = JSON.parse(api.tamper(receipt, receipt));
+    const older = JSON.parse(api.verify(forward, { keys }));
 
     expect(pinnedOnly.exit === 2 && pinnedOnly.ok === true, "exit 2 with the fixture key not pinned");
     expect(withKey.exit === 0 && withKey.ok === true && withKey.checks.length === 5, "exit 0 with the fixture key passed in");
@@ -90,6 +94,9 @@ WebAssembly.instantiate(fs.readFileSync(wasmPath), go.importObject)
     expect(notText.exit === 64 && typeof notText.error === "string", "exit 64 for a receipt that is not text");
     expect(diff.changed === true && diff.path === "/seq" && diff.whitespace_only === false && diff.invalid_json === false, "tamper to point at /seq");
     expect(same.changed === false && same.offset === -1, "tamper to see no change");
+    expect(older.exit === 2 && older.ok === true, "exit 2, not 1, for a record carrying members this build does not know");
+    expect(older.checks[0].status === "warn" && older.checks[0].detail.includes("$.disclosures"), "the schema check to warn and name the member it did not know");
+    expect(older.checks[2].status === "pass", "the signature to be checked and reported all the same");
 
     done = true;
     process.stdout.write(

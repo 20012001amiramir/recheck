@@ -43,6 +43,8 @@ const cases = [
   ["unchained", text(vec.unchained.receipt), { keys }],
   ["legacy receipt (engine 0.1.0)", text(vec.legacy.receipt), { keys }],
   ["legacy projection (engine 0.1.0)", text(vec.legacy.projection), { keys }],
+  ["forward: the case registry's name_check", text(vec.forward.registry_name_check.receipt), { keys }],
+  ["forward: members no schema names", text(vec.forward.unknown_members.receipt), { keys }],
   ["root and proof", receipt, { keys, root: rootFile, proof }],
   ["root and proof, root key not pinned", receipt, { keys: JSON.stringify([vec.key]), root: rootFile, proof }],
   ["proof only", receipt, { keys, proof }],

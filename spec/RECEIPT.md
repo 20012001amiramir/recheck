@@ -1109,17 +1109,18 @@ same projection with a count and a verdict rewritten while `self_hash`, `signatu
 `claims[].source_of`, no `counts.not_checked` and no `registry.method` — must pass all five checks
 and hash to `legacy.self_hash`, and `legacy.projection` must pass all five as a projection: this is
 the case that catches a verifier which requires the three members regardless of the version, or
-which fills them in and so hashes a different body. `forward` carries the two forward-compatibility cases of §15.1, each `{"name", "receipt",
-"self_hash"}` and each signed with the same fixture key. `forward.registry_name_check.receipt`
-names a case registry's `method`, `reason`, `name_check` and `cluster_id` (§4.8.1.1) and must pass
-all five checks outright — exit 0, no warning: these are known members, and a verifier that
-predates them is exactly the failure this vector exists to catch. `forward.unknown_members.receipt`
-is the valid receipt with two members no schema names — `$.disclosures` and
-`$.claims[1].exists.registry.confidence_bp` — added before sealing, so its `self_hash` and its
-signature are over the body as it stands. It must report `schema` `warn` naming both paths, `pass`
-on checks 2, 3 and 5, and exit **2**: a verifier that fails it refuses records the issuer has not
-yet written, and one that passes it silently at exit 0 tells a reader it read fields it did not.
-Neither body's unknown members may be written into, dropped from, or read out of the value.
+which fills them in and so hashes a different body. `forward` carries the two forward-compatibility cases of §15.1, both signed with the same fixture
+key and both `{"name", "receipt", "self_hash"}`, the second with a `paths` list as well.
+`forward.registry_name_check.receipt` names a case registry's `method`, `reason`, `name_check` and
+`cluster_id` (§4.8.1.1) and must pass all five checks outright — exit 0, no warning: these are
+known members, and a verifier built before them is exactly the failure this vector exists to catch.
+`forward.unknown_members.receipt` is the valid receipt with the two members in `paths` —
+`$.claims[1].exists.registry.confidence_bp` and `$.disclosures` — added before sealing, so its
+`self_hash` and its signature are over the body as it stands. With `key` as the pinned set it must
+report `schema` `warn` naming both paths, `pass` on checks 2–5, `ok` true and exit **2**: a
+verifier that fails it refuses records the issuer has not yet written, and one that passes it at
+exit 0 tells a reader it read fields it did not. Neither body's unknown members may be written
+into, dropped from, or read out of the value, and `self_hash` is over the bytes as they stand.
 
 Each `tampered[i].receipt` must have `ok` false and `first_failure` equal to
 `tampered[i].first_failure`. Checks 2–5 are reported in every one of them, never skipped for a

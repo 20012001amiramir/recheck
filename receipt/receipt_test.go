@@ -333,6 +333,59 @@ func TestLegacyVector(t *testing.T) {
 	}
 }
 
+// TestForwardCompatibility is the shared vector for §15.1: the two bodies a verifier must not
+// refuse. It is the regression for the defect that shipped — a build older than the case registry's
+// members turned ten of the issuer's own receipts into FAILs.
+func TestForwardCompatibility(t *testing.T) {
+	vec := vector(t, "receipt.json")
+	keys := keySet(t, vec.Get("key"))
+	fwd := vec.Get("forward")
+	if fwd == nil {
+		t.Fatal("receipt.json carries no forward vector")
+	}
+
+	// The case registry's full answer (§4.8.1.1). These are known members, so nothing is warned
+	// about: a build that refuses this body is a build that predates them.
+	named := fwd.Get("registry_name_check")
+	res := receipt.Verify(pretty(t, named.Get("receipt")), keys)
+	expect(t, "registry name_check", res, map[string]string{
+		"schema": receipt.Pass, "self_hash": receipt.Pass, "signature": receipt.Pass,
+		"key_pinned": receipt.Pass, "chain_fields": receipt.Pass,
+	})
+	if receipt.ExitCode(res.Checks) != 0 || res.Receipt == nil || res.Receipt.SelfHash != named.Get("self_hash").Str {
+		t.Fatalf("registry name_check: exit %d %v", receipt.ExitCode(res.Checks), res.Checks)
+	}
+	reg := res.Receipt.Claims[1].Exists.Registry
+	if reg == nil || reg.NameCheck == nil || *reg.NameCheck != "mismatch" || reg.ClusterID == nil {
+		t.Errorf("registry name_check: %+v", reg)
+	}
+
+	// A sealed body carrying members no schema names: one warning naming every path, the record
+	// verified all the same, nothing failed. Incomplete (exit 2), never failed (exit 1).
+	carried := fwd.Get("unknown_members")
+	res = receipt.Verify(pretty(t, carried.Get("receipt")), keys)
+	expect(t, "unknown members", res, map[string]string{
+		"schema": receipt.Warn, "self_hash": receipt.Pass, "signature": receipt.Pass,
+		"key_pinned": receipt.Pass, "chain_fields": receipt.Pass,
+	})
+	if !res.OK() || receipt.ExitCode(res.Checks) != 2 {
+		t.Fatalf("unknown members: ok=%v exit=%d %v", res.OK(), receipt.ExitCode(res.Checks), res.Checks)
+	}
+	for _, want := range carried.Get("paths").Array {
+		if !strings.Contains(res.Checks[0].Detail, want.Str) {
+			t.Errorf("unknown members: detail %q does not name %s", res.Checks[0].Detail, want.Str)
+		}
+	}
+	// Nothing is written into the body to fill the gap and nothing is read out of it: self_hash is
+	// over the bytes as they stand, unknown members included.
+	if res.Receipt == nil || res.Receipt.SelfHash != carried.Get("self_hash").Str {
+		t.Errorf("unknown members: self_hash %v, want %s", res.Receipt, carried.Get("self_hash").Str)
+	}
+	if len(res.Receipt.SchemaWarnings) != len(carried.Get("paths").Array) {
+		t.Errorf("unknown members: %d warnings, want %d", len(res.Receipt.SchemaWarnings), len(carried.Get("paths").Array))
+	}
+}
+
 func TestUnchained(t *testing.T) {
 	vec := vector(t, "receipt.json")
 	keys := keySet(t, vec.Get("key"))
