@@ -505,7 +505,7 @@ reads as `null`.
 | member | rule |
 |---|---|
 | `reason` | one of the values below, or null — why the registry answered as it did, when `status` alone does not say. A closed list: the engine writes no other value and a verifier refuses one; a new reason is a new version of this format |
-| `name_check` | `"match"`, `"mismatch"`, `"uncertain"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), compared with accents, case and apostrophes folded away, and matched whole. Only the same word is a `"match"`: surnames extend, so `Martin` is not `Martinez`, `Anders` not `Anderson`, `Carter` not `Cartersville`, and no length of shared prefix tells an abbreviation from another party. `"uncertain"` when they share no such word but one party is the other cut short either way round (`Martine` for `Martinez`, `Martin` for `Martinez`, `Mata` for `Matamoros`), or they are within a slip of each other — a distinguishing word of one within one edit (a letter inserted, dropped or changed, or two swapped) of a word of the other, five letters or more — and the record then stands as the source, neither confirmed nor accused. `"not_run"` when the document printed no such word, or the registry no name at all |
+| `name_check` | `"match"`, `"mismatch"`, `"uncertain"`, `"not_run"` or null — whether the record's name and the name the document printed share a party that distinguishes it: a word of either caption that is not a generic one (`State`, `United States`, `City of`, `Inc.`, `Bank` and the like), compared with accents, case and apostrophes folded away, and matched whole. Only the same word is a `"match"`: surnames extend, so `Martin` is not `Martinez`, `Anders` not `Anderson`, `Carter` not `Cartersville`, and no length of shared prefix tells an abbreviation from another party. `"uncertain"` when they share no such word but one party is the other cut short either way round (`Martine` for `Martinez`, `Martin` for `Martinez`, `Mata` for `Matamoros`), or they are within a slip of each other — a distinguishing word of one within one edit (a letter inserted, dropped or changed, or two swapped) of a word of the other, five letters or more — and the record then stands as the source, neither confirmed nor accused. A shared word is not a `"match"` when the record sets one named party against a kind of party and the document named two: `Brown v. State` against a document's `Brown v. Brown` shares the surname and is another case, and that is a `"mismatch"`. Only that way round, and only when a side of the document's caption answers to the record's named party and any side that does not shares no word at all — generic ones included — with the kind the record names: a document may abbreviate a named opponent to the kind it belongs to (`Smith v. Warden`), and `Commissioner of Internal Revenue` against a record's `Commissioner` is the same party spelled longer. `"not_run"` when the document printed no such word, or the registry no name at all |
 | `cluster_id` | integer ≥ 0 or null — the registry's public identifier of the record it answered with: the one confirmed, or the one found at the cited page in another case's name. Sealed in the body only: a projection carries no `cluster_id` (§11) |
 
 `reason` values, the whole list:
@@ -516,7 +516,7 @@ reads as `null`.
 | `citation_not_indexed` | the citation is not in the index; a search by name found exactly one record that shares a party with the cited name, falls within a year of the cited year, and prints no different citation in the same reporter: `method` is `"name_search"` and the record is the source |
 | `ambiguous` | two or more records could be the one meant — printing the citation, or answering to the name within the window — and rank is not evidence: `300` when they print the citation, `200` with no URL when found by name |
 | `court_mismatch` | the one record found by name sits in a court other than the one the citation names; `200` with no URL |
-| `citation_conflict` | the one record found by name prints, in the same reporter, a citation that is not the one cited; `200` with no URL |
+| `citation_conflict` | a record prints, in the same reporter, a citation that is not the one printed for it: the record found by name against the citation cited, or the record found by the citation against a parallel citation the document printed beside it (`263 Neb. 37, 637 N.W.2d 505` where the record prints `638 N.W.2d 505`); `200` with no URL |
 | `reporter_not_covered` | a double miss — no record prints the citation and none answers to the name — in a reporter the registry does not index comprehensively, or a citation with no reporter token; `200` with no URL |
 | `year_unreadable` | a double miss on a citation the document printed no legible year for: with nothing to judge its recency by, the silence is not a denial; `200` with no URL |
 | `recent_volume` | a double miss on a citation the document dates in the current year or the one before, at the frontier of the index; `200` with no URL |
@@ -534,6 +534,14 @@ any other way — a capitalised word before a bare citation, the parties of the 
 the parties of the authority before the `;` — is no name: `name_check` is `"not_run"`, no search
 by name runs, and the citation stands on its own. Only a confident read that shares no party and is no near miss is a
 `"mismatch"`.
+
+A parallel citation is read the same way: only from the citation's own run of text, which is the
+text between the citation and the parenthetical that prints its year — `263 Neb. 37, 637 N.W.2d
+505 (2002)` prints one after a comma, `277 Ga. 75 (586 SE2d 316) (2003)` prints one in
+parentheses, and at most three are read. A citation the document printed no year for closes
+nowhere, and none of what follows it is read as its own. Like the name, a parallel citation is
+matched against and never sealed: the receipt carries the citation the claim was checked under and
+nothing else the document printed around it.
 
 The coverage rule, for a double miss to be an absence (`404`), every condition in this order: the
 page the registry returned was its whole answer; the citation's reporter is one the registry
