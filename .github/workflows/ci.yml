@@ -15,11 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: tinygo (builds the page's module)
-        run: |
-          curl -fsSL -o /tmp/tinygo.deb https://github.com/tinygo-org/tinygo/releases/download/v0.38.0/tinygo_0.38.0_amd64.deb
-          sudo dpkg -i /tmp/tinygo.deb
-          tinygo version
       - name: standard library only
         run: test "$(go list -m all | wc -l)" -eq 1
       - name: gofmt
@@ -28,8 +23,14 @@ jobs:
         run: GO_LOCAL=1 ./build.sh test
       - name: native binary
         run: GO_LOCAL=1 ./build.sh build
+      # Built in the toolchain containers the script defaults to, which is how the artifact that
+      # ships is built. Installed alongside a runner's own Go instead, TinyGo 0.38.0 produced a
+      # page module that panicked inside its own panic printer the moment the browser API was
+      # called — a binary nobody would ever have shipped, failing a check meant to protect the one
+      # we do. The runner has Docker; the four minutes it costs buy an artifact that is the
+      # artifact.
       - name: wasm and npm package
-        run: GO_LOCAL=1 ./build.sh wasm
+        run: ./build.sh wasm
       - name: smoke (binary, npm wrapper, browser API)
         run: ./build.sh smoke
       - name: release matrix
