@@ -553,17 +553,25 @@ would find some other court's case, and the registry's silence on it is `reporte
 The URL a confirmed record resolves to is its opinion file — the registry's own copy on its
 storage host, else the court's — and the retrievers read it as any source; `cluster_id` is what a
 reader looks the record up by. A record with no file resolves to its page on the registry's site,
-which the registry guards behind a challenge: a retriever can hash that page but not read it, and
-SAYS then reports `no_registry_text` (§4.8.2). The name the document printed, the court and the
-year are the document's own text: they decide `name_check` and drive the search by name, and none
-of them ever enters a receipt.
+which the registry guards: an anonymous fetch is answered with a challenge — 202,
+`x-amzn-waf-action: challenge`, a page of script that differs on every fetch — and a challenge is
+no representation of the page, so the verdict is `RESOLVED_NO_ACCESS` and SAYS reports `no_access`
+(§4.8.2). Should that page ever be served, as a 200 that is not the opinion, a retriever's text
+from it never stands in for the opinion either, and SAYS reports `no_registry_text`. The name the
+document printed, the court and the year are the document's own text: they decide `name_check`
+and drive the search by name, and none of them ever enters a receipt.
+
+Throughout this section, "a 2xx body" is an answer with a status of 200–299 other than 202,
+carrying a body. 202 (Accepted) is by definition no representation of the resource — and it is
+what a web application firewall answers a challenge with — so a body that came with it is never
+hashed as the source's content.
 
 `verdict` values:
 
 | value | meaning |
 |---|---|
-| `RESOLVED` | at least one retriever read a 2xx answer with a body; `content_sha256` and `bytes` cover the whole body even when it ran past the size kept for text (SAYS then reports `too_large`) |
-| `RESOLVED_NO_ACCESS` | the source exists and answered, but its content could not be read: 401, 402, 403, 407, 429 or 451 from the URL, the case registry answering 300 (ambiguous), or the case registry confirming a record whose copy could not be read |
+| `RESOLVED` | at least one retriever read a 2xx answer (never 202) with a body; `content_sha256` and `bytes` cover the whole body even when it ran past the size kept for text (SAYS then reports `too_large`) |
+| `RESOLVED_NO_ACCESS` | the source exists and answered, but its content could not be read: 202 (a challenge: accepted, not served), 401, 402, 403, 407, 429 or 451 from the URL, the case registry answering 300 (ambiguous), or the case registry confirming a record whose copy could not be read |
 | `NOT_FOUND` | the identifier or the URL does not exist: the registry answered 404, the case registry found another case at the cited page (§4.8.1.1), or the URL itself answered 404 or 410 — and neither retriever read a 2xx body |
 | `SOURCE_UNREACHABLE` | the network did not answer, answered 5xx, or the body never finished within the deadline — or there was no URL to fetch because the registry did not answer, refused the lookup (401, 403, 407, 429) or failed (5xx): nothing is known about the source either way |
 | `UNSUPPORTED_LOCATOR` | the citation is of a kind the engine cannot resolve; its locator is `unsupported` |
@@ -587,7 +595,7 @@ re-derive it:
 6. the case registry confirmed the record — `status` 200, `cluster_id` set, `name_check` not
    `"mismatch"` — and pointed at its copy, and neither retriever read a 2xx body from it →
    `RESOLVED_NO_ACCESS`: the source exists; its copy did not come;
-7. otherwise the URL's own status decides: 401/402/403/407/429/451 → `RESOLVED_NO_ACCESS`;
+7. otherwise the URL's own status decides: 202/401/402/403/407/429/451 → `RESOLVED_NO_ACCESS`;
    404/410 → `NOT_FOUND`; anything else, no answer and 5xx included → `SOURCE_UNREACHABLE`.
 
 So a registry 404 alone makes `NOT_FOUND` only when neither retriever read the page: what was read
@@ -602,7 +610,7 @@ merged.
 | member | rule |
 |---|---|
 | `verdict` | `"MATCH"`, `"DRIFT"`, `"NOT_FOUND"` or `"NOT_RUN"` |
-| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_registry_text` (the case resolved to a page on the registry's own site, which the registry guards behind a challenge, so no opinion text was available to run against; a case resolved to its opinion file is read like any source), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
+| `reason` | token(48) or null — why, when `NOT_RUN`. The engine writes `no_text_layer` (read, but no text could be extracted), `too_large` (read and hashed whole, but the body ran past the size kept for text), `no_access`, `unreachable`, `not_found`, `unsupported_locator` (the source's EXISTS verdict left nothing to check), `no_registry_text` (the case resolved to a page on the registry's own site, which the registry guards, and the page was served rather than challenged — a challenge is `no_access` — so what was read there is not the opinion and no opinion text was available to run against; a case resolved to its opinion file is read like any source), `no_quote`, `quote_too_short`, `free_tier`, `pending`, `not_requested`; not a closed list in version 1 |
 | `quoted_span` | span or null — where in the source text the match was found |
 | `match_kind` | `"exact"`, `"overlap"` or null |
 | `overlap_bp` | bp or null — how much of the quote the source carries, in basis points |
@@ -1274,6 +1282,14 @@ is absent is still reported as absent, whatever else the object carries.
 Nothing is ever read *from* an unknown member: a verifier reports its path and its presence and
 draws no meaning from its value. Re-serialising is unaffected — an unknown member is part of the
 body, is hashed with the rest of it, and must be reproduced exactly, or `self_hash` will not match.
+
+One rule of §4.8 changed after the line, and it is keyed the same way. From `engine.version`
+`0.2.1`, a 202 answer is not a representation: it is a refusal (`RESOLVED_NO_ACCESS`), and its body
+is never hashed. A `0.2.0` body may carry `RESOLVED` over a 202 — `retrievers[].status` 202 beside
+`content_sha256` of the challenge page that answered — and it verifies as sealed; only its
+`content_sha256` describes a page no reader can re-fetch and match, which `recheck --refetch`
+reports as `changed`. A reader re-deriving a verdict from a body's fields reads the rule of that
+body's own `engine.version`.
 
 ## 16. Known design notes
 
