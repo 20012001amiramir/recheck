@@ -444,6 +444,16 @@ Discriminated on `type`:
 | `"case"` | case-cite | http-url or null |
 | `"unsupported"` | hex64 — the HMAC of the citation string (§4.5), because the string itself would be the claimant's own text | the literal `null` |
 
+A `case` locator may be a citation the claim's own sentence did not print. A brief cites a case in
+full once and in short after — `Clutter v. Smith, 648 N.E.2d 668, 670 (Ind. 1995)`, then `Clutter,
+648 N.E.2d at 670` — and a short form names a page inside the opinion, never the page it starts on,
+so there is nothing in it to resolve. The engine resolves one against the same document: the full
+citation that document printed earlier in that volume and that reporter, and only when exactly one
+of its citations qualifies — where the document printed a party before the short form, only a
+citation whose caption shares that party is a candidate at all. Two candidates resolve to nothing.
+Nothing outside the document is consulted, and the `value` sealed is the full citation, which is
+the case the claim cites.
+
 ### 4.8 Verdicts
 
 #### 4.8.1 `exists`
