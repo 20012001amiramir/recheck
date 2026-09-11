@@ -211,25 +211,25 @@
     ],
     "engine": {
       "name": "exhibitb",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "normalize": "norm@1",
       "says_thresholds": {
         "match_bp": 10000,
         "drift_min_bp": 7500
       }
     },
-    "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+    "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
     "signatures": [
       {
         "key_id": "eb-receipt-test",
         "alg": "ed25519",
-        "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+        "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
         "role": "issuer"
       }
     ]
   },
-  "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
-  "canonical_sha256": "dff8eb6cf10f7e2ab84794dd08830eb9ba1bb1c5b716122d2d6554267c8b3d7c",
+  "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
+  "canonical_sha256": "59f231bbf37e1a491edf360de5cc146dccc1e770ddb4d4c0cefaf095125132c8",
   "projection": {
     "v": 1,
     "kind": "exhibitb.receipt",
@@ -282,19 +282,19 @@
     ],
     "engine": {
       "name": "exhibitb",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "normalize": "norm@1",
       "says_thresholds": {
         "match_bp": 10000,
         "drift_min_bp": 7500
       }
     },
-    "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+    "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
     "signatures": [
       {
         "key_id": "eb-receipt-test",
         "alg": "ed25519",
-        "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+        "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
         "role": "issuer"
       }
     ],
@@ -444,7 +444,7 @@
         "dissent": null
       }
     ],
-    "projection_sig": "6pwQKdv1h/YKNzjp45FC9N8LQoHNthkDf8Rt52bdPsMFVD62FjMUZShtNKWS/cNUGyVBgKYvWwMT3D6UaafpDw=="
+    "projection_sig": "Tj1f4MozNjPfeFJSYM4RyWp1FLDY/PKW4OLNGv2dDoRWZOXH9vmPa+h5NkjIU+fdv3F8BgJyRpVLWhXLB5V4BQ=="
   },
   "projection_tampered": {
     "name": "a count and a verdict rewritten in a projection, self_hash and signatures untouched",
@@ -501,19 +501,19 @@
       ],
       "engine": {
         "name": "exhibitb",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "normalize": "norm@1",
         "says_thresholds": {
           "match_bp": 10000,
           "drift_min_bp": 7500
         }
       },
-      "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+      "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
       "signatures": [
         {
           "key_id": "eb-receipt-test",
           "alg": "ed25519",
-          "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+          "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
           "role": "issuer"
         }
       ],
@@ -663,7 +663,7 @@
           "dissent": null
         }
       ],
-      "projection_sig": "6pwQKdv1h/YKNzjp45FC9N8LQoHNthkDf8Rt52bdPsMFVD62FjMUZShtNKWS/cNUGyVBgKYvWwMT3D6UaafpDw=="
+      "projection_sig": "Tj1f4MozNjPfeFJSYM4RyWp1FLDY/PKW4OLNGv2dDoRWZOXH9vmPa+h5NkjIU+fdv3F8BgJyRpVLWhXLB5V4BQ=="
     }
   },
   "unchained": {
@@ -874,24 +874,24 @@
       ],
       "engine": {
         "name": "exhibitb",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "normalize": "norm@1",
         "says_thresholds": {
           "match_bp": 10000,
           "drift_min_bp": 7500
         }
       },
-      "self_hash": "0eb9f11ab9cf30cbd66170923adbf0daa05524953642584949452126b7394b5a",
+      "self_hash": "c39fc61e4e6e675a45b572687288d73ea2581abce3ea2bb40eedf95636d06d09",
       "signatures": [
         {
           "key_id": "eb-receipt-test",
           "alg": "ed25519",
-          "sig": "7DEuJomOZDPzRkAMiNnlaMK1phVVJKksBEHtyTsVv3nC313B3D++wqvc24zA8WjaJPB1O4kbzAqFCmSL+/JrBA==",
+          "sig": "uCEHgXeqSNudieOSEvK9hFKyvi7Z2YaeLH7Y04xq+3xkn5MQONMRIBMrNKZJGYqnHX/0FkEoJwzXqQLjoVJzCw==",
           "role": "issuer"
         }
       ]
     },
-    "self_hash": "0eb9f11ab9cf30cbd66170923adbf0daa05524953642584949452126b7394b5a"
+    "self_hash": "c39fc61e4e6e675a45b572687288d73ea2581abce3ea2bb40eedf95636d06d09"
   },
   "legacy": {
     "name": "a body sealed at engine 0.1.0, before the format was finalized: no claims[].source_of, no counts.not_checked, no registry.method — read as body, 0 and lookup (§15)",
@@ -1336,7 +1336,7 @@
         "kind": "exhibitb.receipt",
         "id": "eb_6tLd4vXq9BnR2sKw",
         "seq": 2,
-        "prev_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "prev_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "issued_at": "2026-09-03T12:40:18Z",
         "issuer": {
           "name": "EXHIBIT B",
@@ -1541,24 +1541,24 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "c2c9ca649c623aa43d7d62da8a2edf51f11e526737e2e3141bf9f8449a0f4e59",
+        "self_hash": "b2a2c272b7e9c0890262aef026b45b47ec65adbbe81da2ebff5aa3c644cada90",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "BREEPceSqZS3uoSWazlFtQAzOWoPcCDjtAPCj68fprVDb889o3BVAlmb/2PjkyamXOSvSBVlWfQIX/g7SkULDQ==",
+            "sig": "QXmIgfYdxPaCLYpUMOfLuc1H3yNG793jkvYfCfz/g3Pbwofi5O74NFjKKp2YQUiFC3hs6onY5166MzXBNVwGAg==",
             "role": "issuer"
           }
         ]
       },
-      "self_hash": "c2c9ca649c623aa43d7d62da8a2edf51f11e526737e2e3141bf9f8449a0f4e59"
+      "self_hash": "b2a2c272b7e9c0890262aef026b45b47ec65adbbe81da2ebff5aa3c644cada90"
     },
     "unknown_members": {
       "name": "a sealed body carrying two members no schema names, $.disclosures and $.claims[1].exists.registry.confidence_bp — schema warns and names both, checks 2, 3 and 5 pass, exit 2 (§15.1)",
@@ -1774,19 +1774,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "38e083c2f849fa5fc7bc8aaf7e0e3d23aba1b30501f35a64a6ea949b64ee1812",
+        "self_hash": "8f02b151cd07a97e37898bd1b84582414b40f1421e86a37adac6f216c6ccbb81",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m+5xpwEPiA9ZeKJqvv5oC/hJqYC3jrq1i0hC6GnzKdKoMWONVnr41F/nFNmNiGh1OPjSGUdX9RQ3XBZTLwKxCw==",
+            "sig": "liMf8HCeUI9ahGBAPZuvYIm/54CcoM8LpbvLAEYNS9Z0DdSaYrAmlpGolrOR+b5J4wAL8UUFZnaDOaxE3uRRDQ==",
             "role": "issuer"
           }
         ],
@@ -1794,7 +1794,7 @@
           "funding": "none"
         }
       },
-      "self_hash": "38e083c2f849fa5fc7bc8aaf7e0e3d23aba1b30501f35a64a6ea949b64ee1812"
+      "self_hash": "8f02b151cd07a97e37898bd1b84582414b40f1421e86a37adac6f216c6ccbb81"
     }
   },
   "tampered": [
@@ -2008,19 +2008,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ]
@@ -2236,19 +2236,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "mtOR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "NrvHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ]
@@ -2464,19 +2464,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ]
@@ -2692,19 +2692,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ]
@@ -2920,19 +2920,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ]
@@ -3143,19 +3143,19 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ]
@@ -3371,23 +3371,23 @@
         ],
         "engine": {
           "name": "exhibitb",
-          "version": "0.2.0",
+          "version": "0.2.1",
           "normalize": "norm@1",
           "says_thresholds": {
             "match_bp": 10000,
             "drift_min_bp": 7500
           }
         },
-        "self_hash": "aed2f1a979d3c2533e2e7eca9c697d2ae1a2f08f4238361d1e9fd0b5c83bd485",
+        "self_hash": "4de0c9e9cca7cb9ffa8227bb696863d4300564d4a45a41e842bd3ac1bd68ef1a",
         "signatures": [
           {
             "key_id": "eb-receipt-test",
             "alg": "ed25519",
-            "sig": "m9OR8iJviFGIEF9tfiV3ZQ4khZZybiyAOAnNqqILg9vr80HkCQbvScBmVNS3H9SBS+xP6FK01aiOyrICA0UDDg==",
+            "sig": "N7vHkssDTi7j4yymLx9LMRMpgFr6Upr2eAzoZbMeCEzAtumjgszhOXp2k2+FcT8duBx8VjBbhTg3DLkigTakDQ==",
             "role": "issuer"
           }
         ],
-        "projection_sig": "6pwQKdv1h/YKNzjp45FC9N8LQoHNthkDf8Rt52bdPsMFVD62FjMUZShtNKWS/cNUGyVBgKYvWwMT3D6UaafpDw=="
+        "projection_sig": "Tj1f4MozNjPfeFJSYM4RyWp1FLDY/PKW4OLNGv2dDoRWZOXH9vmPa+h5NkjIU+fdv3F8BgJyRpVLWhXLB5V4BQ=="
       }
     }
   ]
