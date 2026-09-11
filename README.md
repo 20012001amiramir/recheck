@@ -49,9 +49,13 @@ vectors included — reports `key_pinned: warn` and `RESULT: INCOMPLETE`, never 
 
 ## Install
 
-- **npm** (Node 18 or newer): `npx exhibitb verify receipt.json`, or `npm i -g exhibitb` for a
-  permanent `exhibitb` / `recheck` command. The package is the same verifier compiled to
-  WebAssembly.
+- **npm** (Node 18 or newer): the package is **not on the registry yet**, so `npx exhibitb` does
+  not resolve today and this file will not print it as though it did. It is built and its smoke
+  test passes — see [Publishing the npm package](#publishing-the-npm-package) — and when it is
+  published, `npx exhibitb verify receipt.json` is the command, or `npm i -g exhibitb` for a
+  permanent `exhibitb` / `recheck`. Until then, build it here and run
+  `node npm/bin/exhibitb.js verify receipt.json`, which is the same verifier compiled to
+  WebAssembly and the same code path the package ships.
 - **Binaries**: `make release` cross-compiles `recheck-linux-amd64`, `recheck-linux-arm64`,
   `recheck-darwin-arm64` and `recheck-windows-amd64.exe` into `dist/`. Nothing is published to
   the Releases page yet, so build them or use one of the routes above.
@@ -388,6 +392,26 @@ shipped under a stale id.
 
 `VERSION=v0.1.0 make release` stamps a version; by default it is the tag on `HEAD`, else
 `npm/package.json`'s version plus the short commit id. `GO_IMAGE` overrides the toolchain image.
+
+### Publishing the npm package
+
+The package is `npm/`: a `bin/exhibitb.js` wrapper around the WebAssembly build, and nothing else
+of its own. Publishing it is four commands, the third of which must pass before the fourth:
+
+```sh
+./build.sh wasm      # npm/wasm/recheck.wasm (~10 MB) + Go's wasm_exec.js
+./build.sh build     # dist/recheck, which the smoke test compares against
+./build.sh smoke     # the binary, the wrapper and the page's module on every vector
+cd npm && npm publish --access public
+```
+
+`build.sh` runs Go in a container by default, so no local Go is needed; `GO_LOCAL=1` uses the go on
+PATH instead. What `smoke` proves is worth reading before publishing: the native binary answers
+`PASS`, `INCOMPLETE` and `FAIL` on the three receipts the vectors carry for exactly that, the
+wrapper agrees with it on every one, and both are stamped with this checkout's version.
+
+`npm/package.json` carries the version that is published. `build.sh` stamps binaries with the tag
+on `HEAD` when there is one, so tag the commit you publish and the two agree.
 
 ## Spec and vectors
 
