@@ -94,6 +94,28 @@ cmd_release() {
   ls -l dist
 }
 
+# Copies Go's own wasm runtime shim into a directory. The shim moved from misc/wasm to lib/wasm in
+# Go 1.24, so both are tried — and, with GO_LOCAL=1, neither may be there: when a module requires a
+# newer toolchain than the go on PATH, `go env GOROOT` names the toolchain the module asks for
+# while the build runs under whichever one GOTOOLCHAIN actually resolved, and only that one was
+# ever unpacked. So the last resort is the newest downloaded toolchain that really holds the file.
+copy_wasm_exec() {
+  gorun -- sh -c '
+    for dir in "$(go env GOROOT)/lib/wasm" "$(go env GOROOT)/misc/wasm"; do
+      if [ -f "$dir/wasm_exec.js" ]; then cp "$dir/wasm_exec.js" "$1"; exit 0; fi
+    done
+    found=""
+    for candidate in "$(go env GOPATH)"/pkg/mod/golang.org/toolchain@*/lib/wasm/wasm_exec.js; do
+      [ -f "$candidate" ] && found="$candidate"
+    done
+    if [ -z "$found" ]; then
+      echo "wasm_exec.js is under neither $(go env GOROOT) nor any downloaded toolchain" >&2
+      exit 1
+    fi
+    cp "$found" "$1"
+  ' wasm_exec "$1"
+}
+
 cmd_wasm() {
   mkdir -p wasm npm/wasm
   # The page's module has no command line in it (-tags nocli). Each toolchain ships its own
@@ -105,13 +127,12 @@ cmd_wasm() {
   else
     echo "building wasm/recheck.wasm (standard Go, -tags nocli)"
     gorun GOOS=js GOARCH=wasm -- go build -trimpath -tags nocli -ldflags "$LDFLAGS" -o wasm/recheck.wasm ./cmd/wasm
-    gorun -- sh -c 'cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" wasm/ 2>/dev/null || cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" wasm/'
+    copy_wasm_exec wasm/
   fi
-  # The npm package's module carries the command line, whose net/http needs standard Go. The
-  # shim moved from misc/wasm to lib/wasm in Go 1.24.
+  # The npm package's module carries the command line, whose net/http needs standard Go.
   echo "building npm/wasm/recheck.wasm (standard Go)"
   gorun GOOS=js GOARCH=wasm -- go build -trimpath -ldflags "$LDFLAGS" -o npm/wasm/recheck.wasm ./cmd/wasm
-  gorun -- sh -c 'cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" npm/wasm/ 2>/dev/null || cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" npm/wasm/'
+  copy_wasm_exec npm/wasm/
   cp LICENSE npm/LICENSE
   # The valid receipt from the vectors as a plain file, for the smoke test and for readers.
   gorun -- go run ./cmd/recheck vectors-extract spec/vectors/receipt.json receipt > spec/vectors/receipt-valid.json
