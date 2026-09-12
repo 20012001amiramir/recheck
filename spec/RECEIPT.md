@@ -637,6 +637,17 @@ merged.
 it was found between `drift_min_bp` and `match_bp`; `NOT_FOUND` means nothing at or above
 `drift_min_bp`; `NOT_RUN` means the SAYS check did not run, and `reason` says why.
 
+Which text it ran against is not a member, because the body already says it. Where `exists.verdict`
+is `RESOLVED`, the text is the case registry's copy of the opinion when it holds one and otherwise
+what a retriever extracted from the body it read. Where the verdict is `RESOLVED_NO_ACCESS` and
+SAYS nevertheless ran, the text is the registry's copy and can be nothing else: no retriever read a
+body — that is what the verdict means — so the only text there was is the one the registry holds
+for `exists.registry.cluster_id`, and a reader can fetch it by that identifier and repeat the
+check. The registry hands an opinion over only for a record it confirmed (§4.8.1.1), so a SAYS
+verdict beside `RESOLVED_NO_ACCESS` says: the copy at the URL did not come, the record is this one,
+and the attributed words are or are not in the text the registry holds for it. Required from
+`engine.version` `0.2.2`; a body sealed before it carries `NOT_RUN` with `no_access` there.
+
 #### 4.8.3 A retriever
 
 | member | rule |
@@ -1301,13 +1312,21 @@ Nothing is ever read *from* an unknown member: a verifier reports its path and i
 draws no meaning from its value. Re-serialising is unaffected — an unknown member is part of the
 body, is hashed with the rest of it, and must be reproduced exactly, or `self_hash` will not match.
 
-One rule of §4.8 changed after the line, and it is keyed the same way. From `engine.version`
+Two rules of §4.8 changed after the line, and both are keyed the same way. From `engine.version`
 `0.2.1`, a 202 answer is not a representation: it is a refusal (`RESOLVED_NO_ACCESS`), and its body
 is never hashed. A `0.2.0` body may carry `RESOLVED` over a 202 — `retrievers[].status` 202 beside
 `content_sha256` of the challenge page that answered — and it verifies as sealed; only its
 `content_sha256` describes a page no reader can re-fetch and match, which `recheck --refetch`
-reports as `changed`. A reader re-deriving a verdict from a body's fields reads the rule of that
-body's own `engine.version`.
+reports as `changed`.
+
+From `engine.version` `0.2.2`, SAYS runs against the registry's copy of an opinion where the
+registry confirmed the record and no retriever could read one, so `says.verdict` beside
+`exists.verdict` `RESOLVED_NO_ACCESS` is a finding rather than a contradiction (§4.8.2). A body
+below `0.2.2` carries `NOT_RUN` with `no_access` in that position, which is what its engine knew;
+neither is wrong for its own version.
+
+A reader re-deriving a verdict from a body's fields reads the rule of that body's own
+`engine.version`.
 
 ## 16. Known design notes
 
